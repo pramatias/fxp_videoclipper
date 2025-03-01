@@ -1,0 +1,15 @@
+[package]
+name = "merger"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+image = "0.25.5"
+indicatif = "0.17.9"
+log = "0.4"
+anyhow = "1.0.95"
+rand = "0.8.0"
+
+filenames = { path = "../filenames"}
+modes = { path = "../modes"}
+output = { path = "../output"}

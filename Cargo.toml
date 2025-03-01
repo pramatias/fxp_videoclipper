@@ -1,0 +1,28 @@
+[package]
+name = "fxp_videoclipper"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = "4.5.23"
+log = "0.4"
+ctrlc = "3.4.5"
+anyhow = "1.0.95"
+clap-verbosity-flag = "3.0.2"
+console = "0.15.10"
+
+init = { path = "init" }
+modes = { path = "modes"}
+
+exporter = { path = "exporter" }
+sampler = { path = "sampler" }
+merger = { path = "merger"}
+clutter = { path = "clutter" }
+gmicer = { path = "gmicer"}
+clipper = { path = "clipper"}
+
+filenames = { path = "filenames"}
+output = { path = "output"}
+
+[workspace]
+members = ["init", "exporter", "clutter", "filenames", "merger", "sampler", "gmicer", "clipper", "modes", "output",]

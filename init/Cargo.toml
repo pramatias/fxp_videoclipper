@@ -1,0 +1,20 @@
+[package]
+name = "init"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dialoguer = "0.11.0"
+directories = "5.0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+log = "0.4"
+env_logger = "0.11.6"
+rolling-file = "0.2.0"
+confy = "0.6.1"
+anyhow = "1.0.95"
+console = "0.15.10"
+
+[lib]
+name = "init"
+path = "src/lib.rs"

@@ -1,0 +1,15 @@
+[package]
+name = "sampler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+indicatif = "0.17.9"
+log = "0.4"
+ctrlc = "3.4.5"
+anyhow = "1.0.95"
+rand = "0.8.0"
+
+[lib]
+name = "sampler"
+path = "src/lib.rs"

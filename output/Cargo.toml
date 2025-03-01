@@ -1,0 +1,11 @@
+[package]
+name = "output"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.96"
+log = "0.4"
+rand = "0.8.0"
+
+modes = { path = "../modes"}

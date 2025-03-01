@@ -1,0 +1,10 @@
+[package]
+name = "modes"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[lib]
+name = "modes"
+path = "src/lib.rs"

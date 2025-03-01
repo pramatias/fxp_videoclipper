@@ -1,0 +1,11 @@
+[package]
+name = "filenames"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.95"
+tempfile = "3.15.0"
+regex = "1.11.1"
+log = "0.4"
+thiserror = "2.0.11"
