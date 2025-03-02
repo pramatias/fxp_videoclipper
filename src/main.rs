@@ -412,7 +412,7 @@ fn run_sampler(cli: &Cli, config: &Config) -> Result<()> {
     }
 
     // Execute the sampling process.
-    sampler_args
+    sampler_args?
         .sample_images(running)
         .context("An error occurred during sample image processing")?;
 

@@ -7,7 +7,11 @@ use std::sync::{
     Arc,
 };
 
-use crate::output::create_output_directory;
+
+use modes::Modes;
+use output::ModeOutput;
+use output::Output;
+
 use crate::sample::{extract_multiple_frames, extract_single_frame};
 
 /// A collection of arguments for video sampling operations.
@@ -41,18 +45,27 @@ impl Sampler {
         output_path: Option<String>,
         duration: u64,
         sampling_number: Option<usize>,
-    ) -> Self {
-        let video_path = PathBuf::from(video_path);
+    ) -> Result<Self> {
+        let video_path = PathBuf::from(&video_path);
 
-        // Handle the output_path using create_output_directory
-        let output_path = create_output_directory(&video_path, output_path.as_deref()).ok();
+        // Set up mode and convert to Output (assumes Modes and Output are defined similarly to Merger)
+        let mode: Modes = Modes::Sampler;
+        let output: Output = mode.into();
 
-        Self {
+        // Use the trait method to create the output directory.
+        let output_path = match output {
+            Output::Sampler(sampler_output) => {
+                sampler_output.create_output_directory((video_path.clone(), output_path))?
+            }
+            _ => unreachable!("Expected Sampler mode"),
+        };
+
+        Ok(Self {
             video_path,
-            output_path,
+            output_path: Some(output_path),
             duration,
             sampling_number,
-        }
+        })
     }
 }
 

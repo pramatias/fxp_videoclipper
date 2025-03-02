@@ -1,4 +1,3 @@
-mod output;
 mod sample;
 mod sampler;
 

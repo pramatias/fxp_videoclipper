@@ -9,7 +9,6 @@ use crate::merge::merge_all_images;
 // use crate::output::create_output_directory;
 
 use modes::Modes;
-// use output::MergerOutput;
 use output::ModeOutput;
 use output::Output;
 

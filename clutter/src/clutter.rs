@@ -5,8 +5,11 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use modes::Modes;
+use output::ModeOutput;
+use output::Output;
+
 use crate::clut::clut_all_images;
-use crate::output::create_output_directory;
 
 use filenames::FilenameValidator;
 use filenames::SimpleValidator;
@@ -25,41 +28,52 @@ impl Clutter {
         clut_image: String,
         output_directory: Option<String>,
     ) -> Result<Self> {
-        // Convert input directory to PathBuf and ensure it exists
-        let input_directory = PathBuf::from(&input_directory);
-        if !input_directory.is_dir() {
+        // Convert and canonicalize the input directory.
+        let input_directory_path = PathBuf::from(&input_directory);
+        if !input_directory_path.is_dir() {
             anyhow::bail!(
                 "Input directory '{}' does not exist or is not a directory",
-                input_directory.display()
+                input_directory_path.display()
             );
         }
-        let input_directory = fs::canonicalize(&input_directory).with_context(|| {
+        let input_directory_path = fs::canonicalize(&input_directory_path).with_context(|| {
             format!(
                 "Failed to resolve input directory '{}'",
-                input_directory.display()
+                input_directory_path.display()
             )
         })?;
 
-        // Convert clut image to PathBuf and ensure it exists
-        let clut_image = PathBuf::from(&clut_image);
-        if !clut_image.is_file() {
+        // Convert and canonicalize the CLUT image.
+        let clut_image_path = PathBuf::from(&clut_image);
+        if !clut_image_path.is_file() {
             anyhow::bail!(
                 "CLUT image '{}' does not exist or is not a file",
-                clut_image.display()
+                clut_image_path.display()
             );
         }
-        let clut_image = fs::canonicalize(&clut_image)
-            .with_context(|| format!("Failed to resolve CLUT image '{}'", clut_image.display()))?;
+        let clut_image_path = fs::canonicalize(&clut_image_path).with_context(|| {
+            format!(
+                "Failed to resolve CLUT image '{}'",
+                clut_image_path.display()
+            )
+        })?;
 
-        // Create the output directory (explicit if provided, auto-generated otherwise)
-        let output_directory =
-            create_output_directory(&input_directory, output_directory.as_deref())?;
+        // Use the Modes/Output pattern to create the output directory.
+        let mode: Modes = Modes::Clutter;
+        let output: Output = mode.into();
+        let output_directory_path = match output {
+            Output::Clutter(clutter_output) => {
+                // Here we pass a tuple with the input directory (as base) and the optional output directory.
+                clutter_output.create_output_directory((input_directory_path.clone(), output_directory))?
+            }
+            _ => unreachable!("Expected Clutter mode"),
+        };
 
         Ok(Self {
-            input_directory,
-            clut_image,
+            input_directory: input_directory_path,
+            clut_image: clut_image_path,
             input_files: BTreeMap::new(),
-            output_directory,
+            output_directory: output_directory_path,
         })
     }
 }
