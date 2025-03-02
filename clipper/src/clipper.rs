@@ -10,10 +10,13 @@ use std::path::Path;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
+use modes::Modes;
+use output::ModeOutput;
+use output::Output;
+
 use crate::clip::create_video_without_audio;
 use crate::clip::merge_video_audio;
 use crate::clip::trim_merged_video;
-use crate::output::create_output_filename;
 
 use filenames::FilenameValidator;
 use filenames::ImageMappingError;
@@ -36,6 +39,91 @@ pub struct Clipper {
 
     /// Duration in milliseconds to use for video processing.
     pub duration: Option<u64>,
+}
+
+impl Clipper {
+    /// Creates a new Clipper instance.
+    ///
+    /// # Parameters
+    /// - `input_dir`: Path to the input directory.
+    /// - `mp3_path`: Optional MP3 file path.
+    /// - `output_path`: Optional output directory; if not provided, a default directory will be created inside the input directory.
+    /// - `fps`: Frames per second for the output video.
+    /// - `duration`: Duration in milliseconds for the video.
+    pub fn new(
+        input_dir: String,
+        mp3_path: Option<String>,
+        output_path: Option<String>,
+        fps: u32,
+        duration: Option<u64>,
+    ) -> Result<Self> {
+        debug!("Initializing Clipper instance...");
+
+        // Validate fps.
+        if fps == 0 {
+            debug!("FPS validation failed: FPS must be greater than zero");
+            return Err(anyhow!("FPS must be greater than zero"));
+        }
+        debug!("FPS validated: {}", fps);
+
+        // Convert and validate input_dir.
+        let input_dir = PathBuf::from(input_dir);
+        debug!("Input directory: {:?}", input_dir);
+        if !input_dir.exists() || !input_dir.is_dir() {
+            debug!(
+                "Input directory validation failed: {} does not exist or is not a directory",
+                input_dir.display()
+            );
+            return Err(anyhow!(
+                "Input directory does not exist or is not a directory: {}",
+                input_dir.display()
+            ));
+        }
+        debug!("Input directory validated successfully.");
+
+        // Validate MP3 if provided, and keep the original string for output directory creation.
+        let mp3_path_str = mp3_path.clone();
+        let mp3_path = mp3_path.map(PathBuf::from);
+        if let Some(ref mp3) = mp3_path {
+            debug!("MP3 file provided: {:?}", mp3);
+            if !mp3.exists() || !mp3.is_file() {
+                debug!(
+                    "MP3 file not found: {}. Continuing without a valid MP3.",
+                    mp3.display()
+                );
+            } else {
+                debug!("MP3 file validated successfully.");
+            }
+        } else {
+            debug!("No MP3 file provided.");
+        }
+        debug!("Output path provided: {:?}", output_path);
+
+        // Use the trait-based output directory creation.
+        let mode: Modes = Modes::Clipper;
+        let output: Output = mode.into();
+        let output_directory_path = match output {
+            Output::Clipper(clipper_output) => {
+                clipper_output.create_output_directory((input_dir.clone(), mp3_path.clone(), output_path))?
+            }
+            _ => unreachable!("Expected Clipper mode"),
+        };
+        debug!("Generated output directory: {:?}", output_directory_path);
+
+        // (Optional) Log additional details from the setup.
+        let (_tmp_dir, final_out_dir, frames, total_frames) =
+            setup_clipper_processing(&input_dir, &output_directory_path)?;
+        debug!("Clipper setup complete: {} frames found", total_frames);
+
+        debug!("Clipper instance created successfully.");
+        Ok(Self {
+            input_dir,
+            mp3_path,
+            output_path: final_out_dir,
+            fps,
+            duration,
+        })
+    }
 }
 
 impl Clipper {
@@ -100,90 +188,6 @@ impl Clipper {
         );
 
         Ok(final_video_path)
-    }
-}
-
-impl Clipper {
-    /// Creates a new Clipper instance.
-    ///
-    /// # Parameters
-    /// - `input_dir`: Path to the input directory.
-    /// - `mp3_path`: Optional MP3 file path.
-    /// - `output_path`: Optional output directory; if not provided, a default directory will be created inside the input directory.
-    /// - `fps`: Frames per second for the output video.
-    /// - `duration`: Duration in milliseconds for the video.
-    pub fn new(
-        input_dir: String,
-        mp3_path: Option<String>,
-        output_path: Option<String>,
-        fps: u32,
-        duration: Option<u64>,
-    ) -> Result<Self> {
-        debug!("Initializing Clipper instance...");
-
-        // Validate fps.
-        if fps == 0 {
-            debug!("FPS validation failed: FPS must be greater than zero");
-            return Err(anyhow!("FPS must be greater than zero"));
-        }
-        debug!("FPS validated: {}", fps);
-
-        // Convert input_dir from String to PathBuf and validate it exists and is a directory.
-        let input_dir = PathBuf::from(input_dir);
-        debug!("Input directory: {:?}", input_dir);
-        if !input_dir.exists() || !input_dir.is_dir() {
-            debug!(
-                "Input directory validation failed: {} does not exist or is not a directory",
-                input_dir.display()
-            );
-            return Err(anyhow!(
-                "Input directory does not exist or is not a directory: {}",
-                input_dir.display()
-            ));
-        }
-        debug!("Input directory validated successfully.");
-
-        // Convert mp3_path from Option<String> to Option<PathBuf>; if it's missing, log and continue.
-        let mp3_path = mp3_path.map(PathBuf::from);
-        if let Some(ref mp3) = mp3_path {
-            debug!("MP3 file provided: {:?}", mp3);
-            if !mp3.exists() || !mp3.is_file() {
-                debug!(
-                    "MP3 file not found: {}. Continuing without a valid MP3.",
-                    mp3.display()
-                );
-            } else {
-                debug!("MP3 file validated successfully.");
-            }
-        } else {
-            debug!("No MP3 file provided.");
-        }
-
-        // Convert output_path from Option<String> to Option<PathBuf>.
-        let output_path = output_path.map(PathBuf::from);
-        debug!("Output path provided: {:?}", output_path);
-
-        let output_filename = create_output_filename(
-            &input_dir,
-            mp3_path.as_ref().map(|p| p.as_path()),
-            output_path.clone(), // Pass it directly, even if it's None
-        );
-        debug!("Generated output filename: {}", output_filename.display());
-
-        // Call the setup function using the generated output filename.
-        debug!("Setting up Clipper processing...");
-        let (tmp_dir, out_dir, frames, total_frames) =
-            setup_clipper_processing(&input_dir, Path::new(&output_filename))?;
-        debug!("Clipper setup complete: {} frames found", total_frames);
-
-        debug!("Clipper instance created successfully.");
-        Ok(Self {
-            input_dir,
-            mp3_path,
-            output_path: out_dir,
-            fps,
-            duration,
-        })
     }
 }
 

@@ -4,7 +4,7 @@ use log::debug;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-pub fn create_output_filename(
+pub fn create_output_directory(
     input_dir: &Path,
     mp3_path: Option<&Path>,
     output_path: Option<PathBuf>,

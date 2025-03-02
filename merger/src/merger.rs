@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use anyhow::{Context, Result};
 use log::debug;
 use std::collections::BTreeMap;

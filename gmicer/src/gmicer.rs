@@ -6,8 +6,12 @@ use std::path::Path;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
+
+use modes::Modes;
+use output::ModeOutput;
+use output::Output;
+
 use crate::image::image_processing;
-use crate::output::create_output_directory;
 use filenames::FilenameValidator;
 use filenames::ImageMappingError;
 use filenames::TempDirValidator;
@@ -28,16 +32,26 @@ impl Gmicer {
     ) -> Result<Self> {
         let input_path = PathBuf::from(input_directory);
 
-        // Create the output directory. This returns a PathBuf.
-        let output_path_buf = create_output_directory(&input_path, &gmic_args, output_directory)?;
+        // Create the output directory via the ModeOutput trait:
+        let mode: Modes = Modes::Gmicer;
+        let output: Output = mode.into();
+        let output_path_buf = match output {
+            Output::Gmicer(gmicer_output) => {
+                gmicer_output.create_output_directory((
+                    input_path.clone(),
+                    output_directory.map(String::from),
+                ))?
+            }
+            _ => unreachable!("Expected Gmicer mode"),
+        };
 
         let (tmp_dir, images, _padding) = setup_gmic_processing(input_directory)?;
 
         Ok(Self {
-            input_path: input_path,
+            input_path,
             gmic_args,
             tmp_dir: Some(tmp_dir),
-            output_path: output_path_buf, // Direct assignment
+            output_path: output_path_buf,
             images,
         })
     }

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use log::debug;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
@@ -27,15 +27,15 @@ impl ModeOutput for MergerOutput {
     }
 }
 
-pub struct ClutterOutput;
-impl ModeOutput for ClutterOutput {
-    // Adjusted Input to match the new pattern: (PathBuf, Option<String>)
+pub struct GmicerOutput;
+impl ModeOutput for GmicerOutput {
+    // The input is a tuple: (input_path, output_directory)
     type Input = (PathBuf, Option<String>);
 
     fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
-        let (dir, maybe_str) = input;
-        // Convert Option<String> to Option<&str> using as_deref() for consistency.
-        self.create_output_directory_impl(&dir, maybe_str.as_deref())
+        let (input_path, output_directory) = input;
+        // Convert Option<String> to Option<&str> using as_deref() for consistency
+        self.create_output_directory_impl(&input_path, output_directory.as_deref())
     }
 }
 
@@ -60,27 +60,6 @@ impl From<Modes> for Output {
             Modes::Clipper => Output::Clipper(ClipperOutput),
             Modes::Gmicer => Output::Gmicer(GmicerOutput),
         }
-    }
-}
-
-pub struct ClipperOutput;
-impl ModeOutput for ClipperOutput {
-    // Changed Option<&Path> to Option<PathBuf> to avoid lifetime issues.
-    type Input = (PathBuf, Option<PathBuf>, Option<String>);
-    fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
-        let (_dir, _maybe_path, maybe_str) = input;
-        println!("Running Clipper with string: {:?}", maybe_str);
-        Ok(PathBuf::from(format!("clipper_output_{:?}", maybe_str)))
-    }
-}
-
-pub struct GmicerOutput;
-impl ModeOutput for GmicerOutput {
-    type Input = (PathBuf, Option<String>);
-    fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
-        let (_dir, maybe_str) = input;
-        println!("Running Gmicer with string: {:?}", maybe_str);
-        Ok(PathBuf::from(format!("gmicer_output_{:?}", maybe_str)))
     }
 }
 
@@ -113,6 +92,34 @@ impl ModeOutput for SamplerOutput {
             Some(dir) => self.create_explicit_output_directory(dir),
             None => self.output_directory_auto_generated(&input_path),
         }
+    }
+}
+
+pub struct ClutterOutput;
+impl ModeOutput for ClutterOutput {
+    // Adjusted Input to match the new pattern: (PathBuf, Option<String>)
+    type Input = (PathBuf, Option<String>);
+
+    fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
+        let (dir, maybe_str) = input;
+        // Convert Option<String> to Option<&str> using as_deref() for consistency.
+        self.create_output_directory_impl(&dir, maybe_str.as_deref())
+    }
+}
+
+pub struct ClipperOutput;
+impl ModeOutput for ClipperOutput {
+    // Input: (input_path, optional custom directory as PathBuf, optional string parameter)
+    type Input = (PathBuf, Option<PathBuf>, Option<String>);
+
+    fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
+        let (input_path, maybe_path, maybe_str) = input;
+        // Convert owned Option<PathBuf> to Option<&Path> and Option<String> to Option<&str>
+        self.create_output_directory_impl(
+            &input_path,
+            maybe_path.as_deref(),
+            maybe_str.as_deref(),
+        )
     }
 }
 
@@ -349,5 +356,183 @@ impl ClutterOutput {
         fs::create_dir_all(output_path)
             .context("Failed to create output directory")?;
         Ok(output_path.to_path_buf())
+    }
+}
+impl ClipperOutput {
+    /// Creates the output directory or file path based on provided parameters.
+    ///
+    /// - If `output_path` is provided, it is returned (converted to a PathBuf).
+    /// - If an MP3 path is provided, its parent directory and file stem are used.
+    /// - Otherwise, the parent of the input directory and its file name are used.
+    pub fn create_output_directory_impl(
+        &self,
+        input_dir: &Path,
+        mp3_path: Option<&Path>,
+        output_path: Option<&str>,
+    ) -> Result<PathBuf> {
+        debug!("Starting create_output_directory_impl function");
+
+        // If an output path is explicitly provided, convert it to PathBuf and return.
+        if let Some(out_path) = output_path {
+            let path = PathBuf::from(out_path);
+            debug!("Output path provided: {:?}", path);
+            return Ok(path);
+        }
+
+        // If an MP3 path is provided, use its parent directory and file stem.
+        if let Some(mp3) = mp3_path {
+            debug!("MP3 path provided: {:?}", mp3);
+            let parent = mp3.parent().unwrap_or_else(|| Path::new("."));
+            debug!("Using parent directory: {:?}", parent);
+            let stem = mp3.file_stem().unwrap_or_else(|| OsStr::new("input"));
+            debug!("Using file stem: {:?}", stem);
+            return Ok(self.build_output_file(parent, stem));
+        }
+
+        debug!(
+            "No MP3 path provided, using input directory: {:?}",
+            input_dir
+        );
+        // Use the input directory's parent and its file name.
+        let parent = input_dir.parent().unwrap_or_else(|| Path::new("."));
+        debug!("Using parent directory: {:?}", parent);
+        let stem = input_dir.file_name().unwrap_or_else(|| OsStr::new("input"));
+        debug!("Using file stem: {:?}", stem);
+        Ok(self.build_output_file(parent, stem))
+    }
+
+    /// Generates a random name based on the given base string by appending two random alphanumeric characters.
+    fn generate_random_name(&self, base: &OsStr) -> String {
+        let mut rng = rand::thread_rng();
+        let random_suffix: String = (0..2)
+            .map(|_| rng.sample(Alphanumeric) as char)
+            .collect();
+        format!("{}{}", base.to_string_lossy(), random_suffix)
+    }
+
+    /// Builds the output file path by combining the directory and stem.
+    ///
+    /// If the initial candidate (with an "mp4" extension) exists, a random suffix is appended
+    /// to the stem to form a new candidate.
+    fn build_output_file(&self, dir: &Path, stem: &OsStr) -> PathBuf {
+        debug!("Starting build_output_file function");
+        debug!("Directory: {:?}, Stem: {:?}", dir, stem);
+
+        // Create the initial candidate path by joining the directory and stem, then setting its extension.
+        let mut candidate = dir.join(stem);
+        candidate.set_extension("mp4");
+        debug!("Initial candidate path: {:?}", candidate);
+
+        // If the candidate already exists, generate a new stem and update the candidate.
+        if candidate.exists() {
+            debug!("Candidate path already exists: {:?}", candidate);
+            let new_stem = self.generate_random_name(stem);
+            debug!("Generated new stem: {:?}", new_stem);
+            candidate = dir.join(new_stem);
+            candidate.set_extension("mp4");
+            debug!("Updated candidate path: {:?}", candidate);
+        } else {
+            debug!("Candidate path does not exist, using: {:?}", candidate);
+        }
+
+        debug!("Final output path: {:?}", candidate);
+        candidate
+    }
+}
+impl GmicerOutput {
+    /// A public method that chooses between using an explicit output directory
+    /// or auto-generating one (which requires GMIC arguments).
+    pub fn create_output_directory_with_args(
+        &self,
+        input_path: &Path,
+        gmic_args: &[String],
+        output_directory: Option<&str>,
+    ) -> Result<PathBuf> {
+        match output_directory {
+            Some(dir) => self.create_explicit_output_directory(dir),
+            None => self.output_directory_auto_generated(input_path, gmic_args),
+        }
+    }
+
+    /// This method is called from the trait implementation.
+    /// Here we simply use the explicit output directory if provided,
+    /// otherwise we return an error since no GMIC arguments are available.
+    fn create_output_directory_impl(
+        &self,
+        input_path: &Path,
+        output_directory: Option<&str>,
+    ) -> Result<PathBuf> {
+        match output_directory {
+            Some(dir) => self.create_explicit_output_directory(dir),
+            None => Err(anyhow!("GMIC arguments are required for auto-generated output directory")),
+        }
+    }
+
+    /// Creates the output directory using an explicit path.
+    fn create_explicit_output_directory(&self, output_dir: &str) -> Result<PathBuf> {
+        debug!("Output directory provided: {:?}", output_dir);
+        let output_path = Path::new(output_dir);
+        if output_path.exists() {
+            debug!("Output directory exists, removing it: {:?}", output_path);
+            fs::remove_dir_all(output_path)
+                .context("Failed to remove existing output directory")?;
+        }
+        debug!("Creating output directory: {:?}", output_path);
+        fs::create_dir_all(output_path)
+            .context("Failed to create output directory")?;
+        Ok(output_path.to_path_buf())
+    }
+
+    /// Automatically generates an output directory name based on the input path and GMIC arguments.
+    fn output_directory_auto_generated(
+        &self,
+        input_path: &Path,
+        gmic_args: &[String],
+    ) -> Result<PathBuf> {
+        let first_arg = gmic_args
+            .first()
+            .ok_or_else(|| anyhow!("GMIC arguments should not be empty"))?;
+        debug!("First GMIC argument: {}", first_arg);
+        debug!("Input path: {:?}", input_path);
+
+        let base_directory_name = format!(
+            "{}_{}",
+            input_path
+                .file_name()
+                .unwrap_or_else(|| OsStr::new("input"))
+                .to_string_lossy(),
+            first_arg
+        );
+
+        let output_path = loop {
+            let candidate_name = self.generate_random_name(OsStr::new(&base_directory_name));
+            let candidate_path = input_path
+                .parent()
+                .unwrap_or_else(|| Path::new("."))
+                .join(candidate_name);
+
+            debug!("Generated candidate output path: {:?}", candidate_path);
+
+            if !candidate_path.exists() {
+                break candidate_path;
+            }
+        };
+
+        debug!("Creating output directory: {:?}", output_path);
+        fs::create_dir_all(&output_path)
+            .with_context(|| format!("Failed to create output directory {:?}", output_path))?;
+        debug!("Output directory created successfully: {:?}", output_path);
+
+        Ok(output_path)
+    }
+
+    /// Generates a random name by appending two random alphanumeric characters
+    /// to the given base.
+    fn generate_random_name(&self, base: &OsStr) -> String {
+        let mut rng = rand::thread_rng();
+        let random_suffix: String = (0..2)
+            .map(|_| rng.sample(Alphanumeric) as char)
+            .collect();
+        format!("{}{}", base.to_string_lossy(), random_suffix)
     }
 }
