@@ -15,6 +15,8 @@ tempfile = "3.16.0"
 thiserror = "2.0.11"
 
 filenames = { path = "../filenames"}
+modes = { path = "../modes"}
+output = { path = "../output"}
 
 [lib]
 name = "clipper"

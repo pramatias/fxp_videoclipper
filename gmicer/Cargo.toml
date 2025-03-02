@@ -14,3 +14,9 @@ rand = "0.8.0"
 thiserror = "2.0.11"
 
 filenames = { path = "../filenames"}
+modes = { path = "../modes"}
+output = { path = "../output"}
+
+[lib]
+name = "gmicer"
+path = "src/lib.rs"

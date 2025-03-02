@@ -10,6 +10,9 @@ ctrlc = "3.4.5"
 anyhow = "1.0.95"
 rand = "0.8.0"
 
+modes = { path = "../modes"}
+output = { path = "../output"}
+
 [lib]
 name = "exporter"
 path = "src/lib.rs"

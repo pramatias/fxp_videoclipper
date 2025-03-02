@@ -7,8 +7,11 @@ use std::sync::{
     Arc,
 };
 
+use modes::Modes;
+use output::ModeOutput;
+use output::Output;
+
 use crate::export::{cut_video_section, extract_all_frames_with_progress};
-use crate::output::create_output_directory;
 
 /// Represents arguments for video export configuration.
 ///
@@ -43,12 +46,22 @@ impl Exporter {
         pixel_upper_limit: u32,
     ) -> Result<Self> {
         let video_path = PathBuf::from(video_path);
-        let output_directory = create_output_directory(&video_path, output.as_deref())?;
-        let output_dir = PathBuf::from(output_directory);
+
+        // Define the mode and convert it into an Output variant.
+        let mode: Modes = Modes::Exporter;
+        let output_enum: Output = mode.into();
+
+        // Use the trait implementation for ExporterOutput to create the output directory.
+        let output_directory = match output_enum {
+            Output::Exporter(exporter_output) => {
+                exporter_output.create_output_directory((video_path.clone(), output))?
+            }
+            _ => unreachable!("Expected Exporter mode"),
+        };
 
         Ok(Self {
             video_path,
-            output_dir,
+            output_dir: output_directory,
             duration,
             fps,
             pixel_upper_limit,

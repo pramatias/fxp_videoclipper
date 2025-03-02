@@ -13,3 +13,7 @@ rand = "0.8.0"
 filenames = { path = "../filenames"}
 modes = { path = "../modes"}
 output = { path = "../output"}
+
+[lib]
+name = "merger"
+path = "src/lib.rs"

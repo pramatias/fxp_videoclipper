@@ -12,3 +12,9 @@ rand = "0.8.0"
 ctrlc = "3.2"
 
 filenames = { path = "../filenames"}
+modes = { path = "../modes"}
+output = { path = "../output"}
+
+[lib]
+name = "clutter"
+path = "src/lib.rs"
