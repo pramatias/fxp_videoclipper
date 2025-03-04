@@ -1,13 +1,13 @@
 use anyhow::{anyhow, Context, Result};
 use log::debug;
 use rand::distributions::Alphanumeric;
+use rand::thread_rng;
 use rand::Rng;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
-use rand::thread_rng;
 
-pub use modes::Modes; // Assuming Modes is defined in the `modes` module elsewhere
+pub use modes::Modes;
 
 // Define a trait that creates an output directory and returns its PathBuf.
 pub trait ModeOutput {
@@ -15,38 +15,14 @@ pub trait ModeOutput {
     fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf>;
 }
 
-pub struct MergerOutput;
-impl ModeOutput for MergerOutput {
-    // The input is a tuple: (input_path, output_directory, merge_value)
-    type Input = (PathBuf, Option<String>, f32);
-
-    fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
-        let (input_path, output_directory, merge_value) = input;
-        // Convert Option<String> into Option<&str> using as_deref()
-        self.create_output_directory_impl(&input_path, output_directory.as_deref(), merge_value)
-    }
-}
-
-pub struct GmicerOutput;
-impl ModeOutput for GmicerOutput {
-    // The input is a tuple: (input_path, output_directory)
-    type Input = (PathBuf, Option<String>);
-
-    fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
-        let (input_path, output_directory) = input;
-        // Convert Option<String> to Option<&str> using as_deref() for consistency
-        self.create_output_directory_impl(&input_path, output_directory.as_deref())
-    }
-}
-
 // Enum to hold all the possible outputs.
 pub enum Output {
     Exporter(ExporterOutput),
-    Merger(MergerOutput),
     Sampler(SamplerOutput),
+    Merger(MergerOutput),
     Clutter(ClutterOutput),
-    Clipper(ClipperOutput),
     Gmicer(GmicerOutput),
+    Clipper(ClipperOutput),
 }
 
 // Implement conversion from Modes to Output.
@@ -65,6 +41,20 @@ impl From<Modes> for Output {
 
 pub struct ExporterOutput;
 impl ModeOutput for ExporterOutput {
+    // Input is a tuple of the input path and an optional explicit output directory string.
+    type Input = (PathBuf, Option<String>);
+
+    fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
+        let (input_path, output_directory) = input;
+        match output_directory.as_deref() {
+            Some(dir) => self.create_explicit_output_directory(dir),
+            None => self.output_directory_auto_generated(&input_path),
+        }
+    }
+}
+
+pub struct SamplerOutput;
+impl ModeOutput for SamplerOutput {
     type Input = (PathBuf, Option<String>);
 
     /// Creates the output directory either explicitly (if provided) or auto-generates one.
@@ -81,11 +71,10 @@ impl ModeOutput for ExporterOutput {
     }
 }
 
-pub struct SamplerOutput;
-impl ModeOutput for SamplerOutput {
-    // Input is a tuple of the input path and an optional explicit output directory string.
+pub struct ClutterOutput;
+impl ModeOutput for ClutterOutput {
+    // Adjusted Input to match the new pattern: (PathBuf, Option<String>)
     type Input = (PathBuf, Option<String>);
-
     fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
         let (input_path, output_directory) = input;
         match output_directory.as_deref() {
@@ -95,15 +84,28 @@ impl ModeOutput for SamplerOutput {
     }
 }
 
-pub struct ClutterOutput;
-impl ModeOutput for ClutterOutput {
-    // Adjusted Input to match the new pattern: (PathBuf, Option<String>)
-    type Input = (PathBuf, Option<String>);
-
+pub struct MergerOutput;
+impl ModeOutput for MergerOutput {
+    // The input is a tuple: (input_path, output_directory, merge_value)
+    type Input = (PathBuf, Option<String>, f32);
     fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
-        let (dir, maybe_str) = input;
-        // Convert Option<String> to Option<&str> using as_deref() for consistency.
-        self.create_output_directory_impl(&dir, maybe_str.as_deref())
+        let (input_path, output_directory, merge_value) = input;
+        match output_directory.as_deref() {
+            Some(dir) => self.create_explicit_output_directory(dir),
+            None => self.output_directory_auto_generated(&input_path, merge_value),
+        }
+    }
+}
+
+pub struct GmicerOutput;
+impl ModeOutput for GmicerOutput {
+    type Input = (PathBuf, Vec<String>, Option<String>);
+    fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
+        let (input_path, gmic_args, output_directory) = input;
+        match output_directory.as_deref() {
+            Some(dir) => self.create_explicit_output_directory(dir),
+            None => self.output_directory_auto_generated(&input_path, &gmic_args),
+        }
     }
 }
 
@@ -113,45 +115,18 @@ impl ModeOutput for ClipperOutput {
     type Input = (PathBuf, Option<PathBuf>, Option<String>);
 
     fn create_output_directory(&self, input: Self::Input) -> Result<PathBuf> {
-        let (input_path, maybe_path, maybe_str) = input;
-        // Convert owned Option<PathBuf> to Option<&Path> and Option<String> to Option<&str>
-        self.create_output_directory_impl(
-            &input_path,
-            maybe_path.as_deref(),
-            maybe_str.as_deref(),
-        )
+        let (input_path, maybe_path, maybe_explicit) = input;
+        match maybe_explicit.as_deref() {
+            // If an explicit output directory is provided, use it.
+            Some(explicit) => self.create_explicit_output_file(explicit),
+            // Otherwise, auto-generate the output directory, passing the optional mp3_path.
+            None => self.output_directory_auto_generated(&input_path, maybe_path.as_deref()),
+        }
     }
 }
 
 //rest of functions
 impl MergerOutput {
-    /// Internal implementation that calls the appropriate method based on the provided output directory.
-    fn create_output_directory_impl(
-        &self,
-        input_path: &Path,
-        output_directory: Option<&str>,
-        merge_value: f32,
-    ) -> Result<PathBuf> {
-        match output_directory {
-            Some(dir) => self.create_explicit_output_directory(dir),
-            None => self.output_directory_auto_generated(input_path, merge_value),
-        }
-    }
-
-    /// Creates an output directory using the explicitly provided path.
-    fn create_explicit_output_directory(&self, output_dir: &str) -> Result<PathBuf> {
-        log::debug!("Output directory provided: {:?}", output_dir);
-        let output_path = Path::new(output_dir);
-        if output_path.exists() {
-            log::debug!("Output directory exists, removing it: {:?}", output_path);
-            fs::remove_dir_all(output_path)
-                .with_context(|| "Failed to remove existing output directory")?;
-        }
-        log::debug!("Creating output directory: {:?}", output_path);
-        fs::create_dir_all(output_path).with_context(|| "Failed to create output directory")?;
-        Ok(output_path.to_path_buf())
-    }
-
     /// Automatically generates an output directory by appending a random suffix.
     /// The base directory name is built using the input directory name with a `_merged_{merge_value}` suffix.
     fn output_directory_auto_generated(
@@ -186,6 +161,20 @@ impl MergerOutput {
         Ok(output_path)
     }
 
+    /// Creates an output directory using the explicitly provided path.
+    fn create_explicit_output_directory(&self, output_dir: &str) -> Result<PathBuf> {
+        debug!("Output directory provided: {:?}", output_dir);
+        let output_path = Path::new(output_dir);
+        if output_path.exists() {
+            debug!("Output directory exists, removing it: {:?}", output_path);
+            fs::remove_dir_all(output_path)
+                .with_context(|| "Failed to remove existing output directory")?;
+        }
+        debug!("Creating output directory: {:?}", output_path);
+        fs::create_dir_all(output_path).with_context(|| "Failed to create output directory")?;
+        Ok(output_path.to_path_buf())
+    }
+
     /// Generates a random directory name by appending two random alphanumeric characters.
     fn generate_random_name(&self, base: &OsStr) -> String {
         let mut rng = rand::thread_rng();
@@ -193,8 +182,7 @@ impl MergerOutput {
         format!("{}{}", base.to_string_lossy(), random_suffix)
     }
 }
-
-impl ExporterOutput {
+impl SamplerOutput {
     /// Auto-generates an output directory based on the input path.
     fn output_directory_auto_generated(&self, input_path: &Path) -> Result<PathBuf> {
         let base_directory_name = "sample_frames";
@@ -232,20 +220,19 @@ impl ExporterOutput {
 
     /// Creates an explicit output directory.
     fn create_explicit_output_directory(&self, output_dir: &str) -> Result<PathBuf> {
-        log::debug!("Output directory provided: {:?}", output_dir);
+        debug!("Output directory provided: {:?}", output_dir);
         let output_path = Path::new(output_dir);
         if output_path.exists() {
-            log::debug!("Output directory exists, removing it: {:?}", output_path);
+            debug!("Output directory exists, removing it: {:?}", output_path);
             fs::remove_dir_all(output_path)
                 .context("Failed to remove existing output directory")?;
         }
-        log::debug!("Creating output directory: {:?}", output_path);
+        debug!("Creating output directory: {:?}", output_path);
         fs::create_dir_all(output_path).context("Failed to create output directory")?;
         Ok(output_path.to_path_buf())
     }
 }
-
-impl SamplerOutput {
+impl ExporterOutput {
     // This method auto-generates the output directory.
     fn output_directory_auto_generated(&self, input_path: &Path) -> Result<PathBuf> {
         let base_directory_name = format!(
@@ -291,20 +278,11 @@ impl SamplerOutput {
                 .context("Failed to remove existing output directory")?;
         }
         debug!("Creating output directory: {:?}", output_path);
-        fs::create_dir_all(output_path)
-            .context("Failed to create output directory")?;
+        fs::create_dir_all(output_path).context("Failed to create output directory")?;
         Ok(output_path.to_path_buf())
     }
 }
 impl ClutterOutput {
-    /// Creates the output directory either explicitly (if provided) or auto-generates one.
-    pub fn create_output_directory_impl(&self, input_path: &Path, output_directory: Option<&str>) -> Result<PathBuf> {
-        match output_directory {
-            Some(dir) => self.create_explicit_output_directory(dir),
-            None => self.output_directory_auto_generated(input_path),
-        }
-    }
-
     /// Automatically generates an output directory path by appending a random suffix to a base name
     /// that uses the input directory name with a "_clutted" suffix.
     fn output_directory_auto_generated(&self, input_path: &Path) -> Result<PathBuf> {
@@ -337,9 +315,7 @@ impl ClutterOutput {
     /// Generates a random name by appending two random alphanumeric characters to the given base name.
     fn generate_random_name(&self, base: &OsStr) -> String {
         let mut rng = thread_rng();
-        let random_suffix: String = (0..2)
-            .map(|_| rng.sample(Alphanumeric) as char)
-            .collect();
+        let random_suffix: String = (0..2).map(|_| rng.sample(Alphanumeric) as char).collect();
         format!("{}{}", base.to_string_lossy(), random_suffix)
     }
 
@@ -353,60 +329,56 @@ impl ClutterOutput {
                 .context("Failed to remove existing output directory")?;
         }
         debug!("Creating output directory: {:?}", output_path);
-        fs::create_dir_all(output_path)
-            .context("Failed to create output directory")?;
+        fs::create_dir_all(output_path).context("Failed to create output directory")?;
         Ok(output_path.to_path_buf())
     }
 }
 impl ClipperOutput {
-    /// Creates the output directory or file path based on provided parameters.
-    ///
-    /// - If `output_path` is provided, it is returned (converted to a PathBuf).
-    /// - If an MP3 path is provided, its parent directory and file stem are used.
-    /// - Otherwise, the parent of the input directory and its file name are used.
-    pub fn create_output_directory_impl(
+    /// Creates an output file using the explicitly provided path.
+    fn create_explicit_output_file(&self, output_file: &str) -> Result<PathBuf> {
+        debug!("Output file provided: {:?}", output_file);
+        let output_path = std::path::Path::new(output_file);
+        if output_path.exists() {
+            debug!("Output file exists, removing it: {:?}", output_path);
+            std::fs::remove_file(output_path)
+                .with_context(|| "Failed to remove existing output file")?;
+        }
+        debug!("Creating output file: {:?}", output_path);
+        // Create the file to ensure it exists.
+        std::fs::File::create(output_path).with_context(|| "Failed to create output file")?;
+        // Return the output file's path as a PathBuf.
+        Ok(output_path.to_path_buf())
+    }
+
+    fn output_directory_auto_generated(
         &self,
         input_dir: &Path,
         mp3_path: Option<&Path>,
-        output_path: Option<&str>,
     ) -> Result<PathBuf> {
-        debug!("Starting create_output_directory_impl function");
-
-        // If an output path is explicitly provided, convert it to PathBuf and return.
-        if let Some(out_path) = output_path {
-            let path = PathBuf::from(out_path);
-            debug!("Output path provided: {:?}", path);
-            return Ok(path);
-        }
-
-        // If an MP3 path is provided, use its parent directory and file stem.
         if let Some(mp3) = mp3_path {
             debug!("MP3 path provided: {:?}", mp3);
             let parent = mp3.parent().unwrap_or_else(|| Path::new("."));
             debug!("Using parent directory: {:?}", parent);
             let stem = mp3.file_stem().unwrap_or_else(|| OsStr::new("input"));
             debug!("Using file stem: {:?}", stem);
-            return Ok(self.build_output_file(parent, stem));
+            Ok(self.build_output_file(parent, stem))
+        } else {
+            debug!(
+                "No MP3 path provided, using input directory: {:?}",
+                input_dir
+            );
+            let parent = input_dir.parent().unwrap_or_else(|| Path::new("."));
+            debug!("Using parent directory: {:?}", parent);
+            let stem = input_dir.file_name().unwrap_or_else(|| OsStr::new("input"));
+            debug!("Using file stem: {:?}", stem);
+            Ok(self.build_output_file(parent, stem))
         }
-
-        debug!(
-            "No MP3 path provided, using input directory: {:?}",
-            input_dir
-        );
-        // Use the input directory's parent and its file name.
-        let parent = input_dir.parent().unwrap_or_else(|| Path::new("."));
-        debug!("Using parent directory: {:?}", parent);
-        let stem = input_dir.file_name().unwrap_or_else(|| OsStr::new("input"));
-        debug!("Using file stem: {:?}", stem);
-        Ok(self.build_output_file(parent, stem))
     }
 
     /// Generates a random name based on the given base string by appending two random alphanumeric characters.
     fn generate_random_name(&self, base: &OsStr) -> String {
         let mut rng = rand::thread_rng();
-        let random_suffix: String = (0..2)
-            .map(|_| rng.sample(Alphanumeric) as char)
-            .collect();
+        let random_suffix: String = (0..2).map(|_| rng.sample(Alphanumeric) as char).collect();
         format!("{}{}", base.to_string_lossy(), random_suffix)
     }
 
@@ -440,34 +412,6 @@ impl ClipperOutput {
     }
 }
 impl GmicerOutput {
-    /// A public method that chooses between using an explicit output directory
-    /// or auto-generating one (which requires GMIC arguments).
-    pub fn create_output_directory_with_args(
-        &self,
-        input_path: &Path,
-        gmic_args: &[String],
-        output_directory: Option<&str>,
-    ) -> Result<PathBuf> {
-        match output_directory {
-            Some(dir) => self.create_explicit_output_directory(dir),
-            None => self.output_directory_auto_generated(input_path, gmic_args),
-        }
-    }
-
-    /// This method is called from the trait implementation.
-    /// Here we simply use the explicit output directory if provided,
-    /// otherwise we return an error since no GMIC arguments are available.
-    fn create_output_directory_impl(
-        &self,
-        input_path: &Path,
-        output_directory: Option<&str>,
-    ) -> Result<PathBuf> {
-        match output_directory {
-            Some(dir) => self.create_explicit_output_directory(dir),
-            None => Err(anyhow!("GMIC arguments are required for auto-generated output directory")),
-        }
-    }
-
     /// Creates the output directory using an explicit path.
     fn create_explicit_output_directory(&self, output_dir: &str) -> Result<PathBuf> {
         debug!("Output directory provided: {:?}", output_dir);
@@ -478,8 +422,7 @@ impl GmicerOutput {
                 .context("Failed to remove existing output directory")?;
         }
         debug!("Creating output directory: {:?}", output_path);
-        fs::create_dir_all(output_path)
-            .context("Failed to create output directory")?;
+        fs::create_dir_all(output_path).context("Failed to create output directory")?;
         Ok(output_path.to_path_buf())
     }
 
@@ -530,9 +473,7 @@ impl GmicerOutput {
     /// to the given base.
     fn generate_random_name(&self, base: &OsStr) -> String {
         let mut rng = rand::thread_rng();
-        let random_suffix: String = (0..2)
-            .map(|_| rng.sample(Alphanumeric) as char)
-            .collect();
+        let random_suffix: String = (0..2).map(|_| rng.sample(Alphanumeric) as char).collect();
         format!("{}{}", base.to_string_lossy(), random_suffix)
     }
 }

@@ -7,7 +7,6 @@ use std::sync::{
     Arc,
 };
 
-
 use modes::Modes;
 use output::ModeOutput;
 use output::Output;

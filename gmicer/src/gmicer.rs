@@ -6,7 +6,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
-
 use modes::Modes;
 use output::ModeOutput;
 use output::Output;
@@ -39,6 +38,7 @@ impl Gmicer {
             Output::Gmicer(gmicer_output) => {
                 gmicer_output.create_output_directory((
                     input_path.clone(),
+                    gmic_args.clone(), // Pass gmic_args here
                     output_directory.map(String::from),
                 ))?
             }
