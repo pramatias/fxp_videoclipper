@@ -151,11 +151,22 @@ pub fn merge_video_audio(video_path: &PathBuf, mp3_path: &PathBuf) -> PathBuf {
     output_path
 }
 
+/// Trims a merged video using ffmpeg.
+///
+/// This function uses `get_tmp_output_path` to ensure the output file ends with `.mp4`.
+/// After ffmpeg creates the trimmed file, if a temporary filename was used,
+/// it is renamed back to the original output filename using `rename_output_file_if_needed`.
 pub fn trim_merged_video(
     video_path: PathBuf,
     duration_ms: u64,
     output_path: PathBuf,
 ) -> Result<PathBuf> {
+    // Preserve the original output path.
+    let original_output = output_path.clone();
+
+    // Determine the temporary output path that guarantees a .mp4 extension.
+    let tmp_output = get_tmp_output_path(&output_path);
+
     // Convert the duration from milliseconds to seconds (ffmpeg expects seconds).
     let duration_secs = (duration_ms as f64) / 1000.0;
 
@@ -165,20 +176,23 @@ pub fn trim_merged_video(
         duration_secs,
         duration_ms
     );
+    debug!("Output path for trimmed video: {}", tmp_output.display());
 
-    debug!("Output path for trimmed video: {}", output_path.display());
-
-    // Execute ffmpeg command to trim the video
+    // Execute ffmpeg command to trim the video.
     let status = Command::new("ffmpeg")
         .args(&[
             "-y",
             "-i",
-            video_path.to_str().expect("Invalid video path"),
+            video_path
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid video path"))?,
             "-t",
             &duration_secs.to_string(),
             "-c",
             "copy",
-            output_path.to_str().expect("Invalid output path"),
+            tmp_output
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid temporary output path"))?,
         ])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -190,7 +204,45 @@ pub fn trim_merged_video(
         anyhow::bail!("Failed to trim merged video");
     }
 
-    debug!("Final video trimmed and saved to {}", output_path.display());
+    // If a temporary file was used, rename it to the original output path.
+    rename_output_file_if_needed(&tmp_output, &original_output)?;
 
-    Ok(output_path)
+    debug!(
+        "Final video trimmed and saved to {}",
+        original_output.display()
+    );
+
+    Ok(original_output)
+}
+
+/// Returns an output path that ends with `.mp4`.
+/// If `output_path` does not already have a `.mp4` extension (case-insensitive),
+/// a new `PathBuf` with the `.mp4` extension is returned. Otherwise, the original path is cloned.
+fn get_tmp_output_path(output_path: &Path) -> PathBuf {
+    if output_path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_lowercase())
+        != Some("mp4".to_string())
+    {
+        // Replace or append with ".mp4".
+        output_path.with_extension("mp4")
+    } else {
+        output_path.to_owned()
+    }
+}
+
+/// Renames the file from `tmp_output` to `original_output` if they differ.
+/// If no renaming is needed (paths are identical), this function does nothing.
+fn rename_output_file_if_needed(tmp_output: &Path, original_output: &Path) -> Result<()> {
+    if tmp_output != original_output {
+        fs::rename(&tmp_output, &original_output).with_context(|| {
+            format!(
+                "Failed to rename {} to {}",
+                tmp_output.display(),
+                original_output.display()
+            )
+        })?;
+    }
+    Ok(())
 }

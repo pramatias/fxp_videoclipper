@@ -35,7 +35,7 @@ pub struct Sampler {
     pub video_path: PathBuf,
     pub output_path: Option<PathBuf>,
     pub duration: u64,
-    pub sampling_number: Option<usize>,
+    pub sampling_number: usize,
 }
 
 impl Sampler {
@@ -43,7 +43,7 @@ impl Sampler {
         video_path: String,
         output_path: Option<String>,
         duration: u64,
-        sampling_number: Option<usize>,
+        sampling_number: usize,
     ) -> Result<Self> {
         let video_path = PathBuf::from(&video_path);
 
@@ -54,7 +54,7 @@ impl Sampler {
         // Use the trait method to create the output directory.
         let output_path = match output {
             Output::Sampler(sampler_output) => {
-                sampler_output.create_output_directory((video_path.clone(), output_path))?
+                sampler_output.create_output((video_path.clone(), output_path, sampling_number))?
             }
             _ => unreachable!("Expected Sampler mode"),
         };
@@ -102,7 +102,7 @@ impl Sampler {
             .ok_or_else(|| anyhow!("Output path not provided"))?;
 
         match self.sampling_number {
-            Some(1) => {
+            1 => {
                 extract_single_frame(
                     &self.video_path,
                     self.duration,
@@ -111,7 +111,7 @@ impl Sampler {
                 )
                 .context("Failed to extract single frame")?;
             }
-            Some(num_frames) if num_frames > 1 => {
+            num_frames if num_frames > 1 => {
                 // Extract multiple evenly spaced frames.
                 extract_multiple_frames(
                     &self.video_path,

@@ -64,8 +64,7 @@ impl Clutter {
         let output_directory_path = match output {
             Output::Clutter(clutter_output) => {
                 // Here we pass a tuple with the input directory (as base) and the optional output directory.
-                clutter_output
-                    .create_output_directory((input_directory_path.clone(), output_directory))?
+                clutter_output.create_output((input_directory_path.clone(), output_directory))?
             }
             _ => unreachable!("Expected Clutter mode"),
         };

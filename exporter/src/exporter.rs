@@ -54,7 +54,7 @@ impl Exporter {
         // Use the trait implementation for ExporterOutput to create the output directory.
         let output_directory = match output_enum {
             Output::Exporter(exporter_output) => {
-                exporter_output.create_output_directory((video_path.clone(), output))?
+                exporter_output.create_output((video_path.clone(), output))?
             }
             _ => unreachable!("Expected Exporter mode"),
         };

@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::merge::merge_all_images;
-// use crate::output::create_output_directory;
+// use crate::output::create_output;
 
 use modes::Modes;
 use output::ModeOutput;
@@ -41,7 +41,7 @@ impl Merger {
 
         let output_directory_path = match output {
             Output::Merger(merger_output) => {
-                merger_output.create_output_directory((
+                merger_output.create_output((
                     directory1_path.clone(), // using directory1 as base
                     output_directory,
                     opacity,

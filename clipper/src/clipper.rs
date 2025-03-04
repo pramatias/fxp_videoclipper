@@ -103,11 +103,9 @@ impl Clipper {
         let mode: Modes = Modes::Clipper;
         let output: Output = mode.into();
         let output_directory_path = match output {
-            Output::Clipper(clipper_output) => clipper_output.create_output_directory((
-                input_dir.clone(),
-                mp3_path.clone(),
-                output_path,
-            ))?,
+            Output::Clipper(clipper_output) => {
+                clipper_output.create_output((input_dir.clone(), mp3_path.clone(), output_path))?
+            }
             _ => unreachable!("Expected Clipper mode"),
         };
         debug!("Generated output directory: {:?}", output_directory_path);

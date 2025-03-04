@@ -388,13 +388,8 @@ fn run_sampler(cli: &Cli, config: &Config) -> Result<()> {
     .context("Failed to resolve duration for sampler mode")?;
     debug!("Final duration to use: {} milliseconds", duration);
 
-    // Get the sampling number using the helper function.
-    let sampling_number = get_sampling_number(true, cli.multiple, cli.number, config);
-    if let Some(num) = sampling_number {
-        debug!("Using resolved sampling number: {}", num);
-    } else {
-        debug!("No sampling number provided; proceeding with default sampler behavior.");
-    }
+    let sampling_number = get_sampling_number(cli.multiple, cli.number, config);
+    debug!("Using resolved sampling number: {}", sampling_number);
 
     // Create sampler arguments.
     let sampler_args = Sampler::new(video_path, output_path, duration, sampling_number);

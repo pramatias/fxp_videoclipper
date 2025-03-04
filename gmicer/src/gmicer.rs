@@ -36,7 +36,7 @@ impl Gmicer {
         let output: Output = mode.into();
         let output_path_buf = match output {
             Output::Gmicer(gmicer_output) => {
-                gmicer_output.create_output_directory((
+                gmicer_output.create_output((
                     input_path.clone(),
                     gmic_args.clone(), // Pass gmic_args here
                     output_directory.map(String::from),

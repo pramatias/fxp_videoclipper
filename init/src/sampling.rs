@@ -4,45 +4,59 @@ use std::env;
 
 /// Determines the sampling number based on provided parameters and configuration.
 ///
-/// This function evaluates multiple sources to determine the appropriate sampling number.
-/// It prioritizes values in the following order: CLI argument, environment variable,
-/// and configuration file. If no valid sampling number is found and sampling is enabled,
-/// it defaults to 1 for single-frame sampling or returns `None` if sampling is disabled.
-///
 /// # Parameters
-/// - `sampling`: Boolean indicating whether sampling is enabled.
-/// - `multiple`: Boolean indicating whether multiple frames are being processed.
-/// - `number`: Optional number provided via CLI argument.
-/// - `config`: Reference to the configuration file containing sampling settings.
+/// - `multiple`: A boolean indicating whether multiple frames are being processed.
+/// - `number`: An optional number provided via CLI argument.
+/// - `config`: A reference to the configuration containing sampling settings.
 ///
 /// # Returns
-/// - `Option<usize>`: The resolved sampling number, or `None` if no valid number is found.
+/// - `usize`: The resolved sampling number.
 ///
-/// # Notes
-/// - The function prioritizes the sampling number in this order: CLI argument > environment variable > config file.
-/// - If sampling is enabled and `multiple` is true, the function will only use a number if it is greater than 0.
-/// - If sampling is enabled but no valid number is found, it defaults to 1 for single-frame sampling.
-/// - If sampling is disabled, the function returns `None`.
-pub fn get_sampling_number(
-    sampling: bool,
-    multiple: bool,
-    number: Option<usize>,
-    config: &Config,
-) -> Option<usize> {
-    debug!(
-        "Resolving sampling number with arguments: sampling={}, multiple={}, number={:?}",
-        sampling, multiple, number
-    );
+/// # Behavior
+/// - **Multiple Frames (`multiple == true`):**
+///   - If `number` is provided, its value is used.
+///   - Otherwise, defaults to **10**.
+/// - **Single Frame (`multiple == false`):**
+///   - If `number` is provided, its value is used.
+///   - Otherwise, a `Sampling` is created from `config`.
+///     - If a valid sampling number exists in the configuration, that is used.
+///     - Otherwise, the default of **1** is returned.
+pub fn get_sampling_number(multiple: bool, number: Option<usize>, config: &Config) -> usize {
+    if multiple {
+        // For multiple frame sampling, CLI argument (if provided) takes priority,
+        // and if absent, we default to 10.
+        number.unwrap_or(10)
+    } else {
+        // For single frame sampling, CLI argument (if provided) takes priority,
+        // otherwise we try to extract a number from the configuration using Sampling.
+        number.unwrap_or_else(|| Sampling::new(config).number)
+    }
+}
 
-    let sampling_source = if sampling && multiple {
-        if let Some(n) = number {
-            if n > 0 {
-                debug!("Using sampling number provided via CLI argument: {}", n);
-                Some(n)
-            } else {
-                None
-            }
-        } else if let Ok(env_value) = env::var("FRAME_EXPORTER_SAMPLING_NUMBER") {
+/// A helper struct for single-frame sampling configuration.
+/// It tries to derive the sampling number from the configuration.
+#[derive(Debug)]
+pub struct Sampling {
+    pub number: usize,
+}
+
+impl Default for Sampling {
+    /// The default sampling number is 1.
+    fn default() -> Self {
+        Self { number: 1 }
+    }
+}
+
+impl Sampling {
+    /// Creates a new `Sampling` based on the provided configuration.
+    ///
+    /// The logic is as follows:
+    /// - First, check the FRAME_EXPORTER_SAMPLING_NUMBER environment variable.
+    ///   If it exists and can be parsed to a positive usize, that value is used.
+    /// - Otherwise, if the configuration's `sampling_number` is greater than 0, that value is used.
+    /// - If neither is provided, the default value (1) is used.
+    pub fn new(config: &Config) -> Self {
+        let env_number = if let Ok(env_value) = env::var("FRAME_EXPORTER_SAMPLING_NUMBER") {
             if let Ok(parsed_value) = env_value.parse::<usize>() {
                 if parsed_value > 0 {
                     debug!(
@@ -56,26 +70,27 @@ pub fn get_sampling_number(
             } else {
                 None
             }
-        } else if config.sampling_number > 0 {
+        } else {
+            None
+        };
+
+        let config_number = if config.sampling_number > 0 {
             debug!(
                 "Using sampling number from configuration file: {}",
                 config.sampling_number
             );
             Some(config.sampling_number)
         } else {
-            debug!("No sampling number provided; defaulting to None.");
             None
-        }
-    } else if sampling && number.map_or(false, |n| n > 0) {
-        debug!("Using single frame sampling with provided number.");
-        number
-    } else if sampling {
-        debug!("Using default single frame sampling of 1.");
-        Some(1)
-    } else {
-        debug!("Sampling is disabled. Defaulting to None.");
-        None
-    };
+        };
 
-    sampling_source
+        // Use the value from the environment or config; fall back to default if neither is valid.
+        env_number
+            .or(config_number)
+            .map(|number| Self { number })
+            .unwrap_or_else(|| {
+                debug!("No valid sampling number provided; defaulting to Sampling::default().");
+                Self::default()
+            })
+    }
 }
