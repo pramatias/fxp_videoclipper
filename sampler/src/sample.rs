@@ -13,37 +13,6 @@ use std::sync::{
 use std::thread;
 use std::time::Duration;
 
-/// Determines the final output file path based on the provided output_path.
-/// - If `output_path` exists and is a directory, the output file will be `output_path/output_frame.png`.
-/// - Otherwise, it is treated as the exact file path to write to. If necessary, its parent directory is created.
-fn determine_output_file_path(output_path: &Path) -> Result<PathBuf> {
-    if output_path.exists() {
-        if output_path.is_dir() {
-            Ok(output_path.join("output_frame.png"))
-        } else {
-            Ok(output_path.to_path_buf())
-        }
-    } else {
-        // If the path does not exist, use the presence of a file name component as the heuristic.
-        if output_path.file_name().is_some() {
-            // Assume it's a file path; ensure the parent directory exists.
-            if let Some(parent) = output_path.parent() {
-                if !parent.exists() {
-                    fs::create_dir_all(parent).with_context(|| {
-                        format!("Failed to create parent directory: {:?}", parent)
-                    })?;
-                }
-            }
-            Ok(output_path.to_path_buf())
-        } else {
-            // Otherwise, assume it is a directory and create it.
-            fs::create_dir_all(output_path)
-                .with_context(|| format!("Failed to create output directory: {:?}", output_path))?;
-            Ok(output_path.join("output_frame.png"))
-        }
-    }
-}
-
 pub fn extract_single_frame<P: AsRef<Path>>(
     video: P,
     duration_ms: u64,
@@ -60,7 +29,6 @@ pub fn extract_single_frame<P: AsRef<Path>>(
         return Err(anyhow!("Failed to determine video length."));
     }
 
-    // Calculate the middle timestamp in milliseconds.
     let middle_timestamp_ms = duration_ms / 2;
     debug!("Calculated middle timestamp (ms): {}", middle_timestamp_ms);
 
@@ -70,26 +38,40 @@ pub fn extract_single_frame<P: AsRef<Path>>(
         ));
     }
 
-    // Determine the final output file path using the helper function.
-    let output_file_path = determine_output_file_path(&output_path)?;
-    debug!("Output file set to: {:?}", output_file_path);
-
-    // Convert the middle timestamp from milliseconds to seconds for FFmpeg.
     let middle_timestamp_seconds = middle_timestamp_ms as f64 / 1000.0;
 
-    // Convert the video path to a &str.
+    let output_is_file = output_path.is_file();
+    let temp_output_path = if output_is_file {
+        let parent = output_path.parent().unwrap_or_else(|| Path::new("."));
+        let filename = output_path
+            .file_name()
+            .ok_or_else(|| anyhow!("Invalid file name"))?;
+        let filename_str = filename.to_string_lossy();
+        let formatted_filename = if filename_str.to_lowercase().ends_with(".png") {
+            // Remove the ".png" (4 characters) and insert %01d before it.
+            let base = &filename_str[..filename_str.len() - 4];
+            format!("{}%01d.png", base)
+        } else {
+            // Otherwise, just append %01d.png
+            format!("{}%01d.png", filename_str)
+        };
+        parent.join(formatted_filename)
+    } else {
+        output_path.join("sample_frame%01d.png")
+    };
+
     let video_str = video
         .as_ref()
         .to_str()
         .ok_or_else(|| anyhow!("Invalid video file path"))?;
+    let temp_output_str = temp_output_path
+        .to_str()
+        .ok_or_else(|| anyhow!("Invalid output file path"))?;
 
-    // Call the frame extraction function.
     extract_frame(
         video_str,
         middle_timestamp_seconds,
-        output_file_path
-            .to_str()
-            .ok_or_else(|| anyhow!("Invalid output file path"))?,
+        temp_output_str,
         running.clone(),
     )
     .with_context(|| {
@@ -99,10 +81,24 @@ pub fn extract_single_frame<P: AsRef<Path>>(
         )
     })?;
 
+    if output_is_file {
+        let extracted_file = temp_output_path.with_file_name(format!(
+            "{}1.png",
+            output_path.file_stem().unwrap().to_string_lossy()
+        ));
+        std::fs::rename(&extracted_file, &output_path).with_context(|| {
+            format!(
+                "Failed to rename {} to {}",
+                extracted_file.display(),
+                output_path.display()
+            )
+        })?;
+    }
+
     if running.load(Ordering::SeqCst) {
         info!(
             "Successfully extracted frame at {:.3} seconds as {:?}",
-            middle_timestamp_seconds, output_file_path
+            middle_timestamp_seconds, output_path
         );
     } else {
         return Err(anyhow!("Extraction was interrupted midway."));
@@ -224,6 +220,14 @@ fn extract_frame(
         "Attempting to extract frame at {:.3} seconds from video '{}' to '{}'",
         timestamp_seconds, video, output
     );
+
+    // Construct the ffmpeg command as a string for debugging purposes
+    let ffmpeg_command = format!(
+        "ffmpeg -i {} -ss {:.3} -frames:v 1 {} -y",
+        video, timestamp_seconds, output
+    );
+    // Log the final ffmpeg command
+    debug!("Final ffmpeg command: {}", ffmpeg_command);
 
     // Spawn a child process for ffmpeg with the working directory set to output_dir.
     let mut child = ShellCommand::new("ffmpeg")

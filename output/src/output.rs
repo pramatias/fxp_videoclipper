@@ -5,8 +5,8 @@ use rand::thread_rng;
 use rand::Rng;
 use std::ffi::OsStr;
 use std::fs;
-use std::path::{Path, PathBuf};
 use std::fs::File;
+use std::path::{Path, PathBuf};
 
 pub use modes::Modes;
 
@@ -181,20 +181,23 @@ impl SamplerOutput {
             .with_context(|| format!("Failed to create output directory {:?}", output_path))?;
         Ok(output_path)
     }
-/// Creates an explicit output target.
-/// - When sampling_number == 1, the output is a file. If the file or directory already exists,
-///   it is removed and replaced by an empty file.
-/// - When sampling_number > 1, the output is a directory. Any existing file or directory at that path is removed.
+
     /// Creates an explicit output target.
-    /// - When sampling_number is 1, the target is treated as a file. If a file or directory exists at the
-    ///   given path, it is removed and replaced with an empty file.
-    /// - When sampling_number is greater than 1, the target is treated as a directory. Any existing file or directory
-    ///   at that path is removed and a directory is created.
-    fn create_explicit_output_directory(&self, output_dir: &str, sampling_number: usize) -> Result<PathBuf> {
+    /// - When sampling_number is 1, the target is treated as a file.
+    ///   * If the provided path exists as a file, it is removed.
+    ///   * If it exists as a directory, a file named "output_file" is created inside that directory.
+    ///   * If it doesn't exist, an output file is created at that path (ensuring parent dirs exist).
+    /// - When sampling_number is greater than 1, the target is treated as a directory.
+    ///   * Any existing file or directory at that path is removed and a directory is created.
+    fn create_explicit_output_directory(
+        &self,
+        output_dir: &str,
+        sampling_number: usize,
+    ) -> Result<PathBuf> {
         debug!("Output path provided: {:?}", output_dir);
         let output_path = Path::new(output_dir);
 
-        // Determine the output type based on the sampling number.
+        // Map sampling number to output type.
         let output_type = match sampling_number {
             1 => OutputType::File,
             _ => OutputType::Directory,
@@ -202,53 +205,69 @@ impl SamplerOutput {
 
         match output_type {
             OutputType::File => {
+                // Check if the path exists.
                 if output_path.exists() {
-                    match output_path.metadata() {
-                        Ok(metadata) if metadata.is_dir() => {
-                            debug!("Existing directory found at file target, removing it: {:?}", output_path);
-                            fs::remove_dir_all(output_path)
-                                .context("Failed to remove existing directory at file target")?;
+                    if output_path.is_dir() {
+                        // Instead of removing the directory, append a file name.
+                        let file_path = output_path.join("sample_frame.png");
+                        debug!(
+                            "Output path is a directory; creating file inside: {:?}",
+                            file_path
+                        );
+                        // If the file already exists in the directory, remove it.
+                        if file_path.exists() {
+                            if file_path.is_file() {
+                                debug!(
+                                    "Existing file inside directory found, removing it: {:?}",
+                                    file_path
+                                );
+                                fs::remove_file(&file_path).context(
+                                    "Failed to remove existing file in directory target",
+                                )?;
+                            } else if file_path.is_dir() {
+                                debug!("Unexpected directory inside directory target, removing it: {:?}", file_path);
+                                fs::remove_dir_all(&file_path).context(
+                                    "Failed to remove existing directory in directory target",
+                                )?;
+                            }
                         }
-                        Ok(metadata) if metadata.is_file() => {
-                            debug!("Existing file found, removing it: {:?}", output_path);
-                            fs::remove_file(output_path)
-                                .context("Failed to remove existing file")?;
-                        }
-                        Err(e) => return Err(e.into()),
-                        _ => {}
+                        File::create(&file_path)
+                            .context("Failed to create output file inside directory")?;
+                        return Ok(file_path);
+                    } else if output_path.is_file() {
+                        debug!("Existing file found, removing it: {:?}", output_path);
+                        fs::remove_file(output_path).context("Failed to remove existing file")?;
+                    }
+                } else {
+                    // If the file doesn't exist, ensure its parent directories exist.
+                    if let Some(parent) = output_path.parent() {
+                        fs::create_dir_all(parent)
+                            .context("Failed to create parent directories for output file")?;
                     }
                 }
                 debug!("Creating output file: {:?}", output_path);
-                File::create(output_path)
-                    .context("Failed to create output file")?;
+                File::create(output_path).context("Failed to create output file")?;
+                Ok(output_path.to_path_buf())
             }
             OutputType::Directory => {
                 if output_path.exists() {
-                    match output_path.metadata() {
-                        Ok(metadata) if metadata.is_file() => {
-                            debug!("Existing file found at directory target, removing it: {:?}", output_path);
-                            fs::remove_file(output_path)
-                                .context("Failed to remove existing file at directory target")?;
-                        }
-                        Ok(metadata) if metadata.is_dir() => {
-                            debug!("Existing directory found, removing it: {:?}", output_path);
-                            fs::remove_dir_all(output_path)
-                                .context("Failed to remove existing directory")?;
-                        }
-                        Err(e) => return Err(e.into()),
-                        _ => {}
+                    if output_path.is_file() {
+                        debug!(
+                            "Existing file found at directory target, removing it: {:?}",
+                            output_path
+                        );
+                        fs::remove_file(output_path)
+                            .context("Failed to remove existing file at directory target")?;
                     }
                 }
                 debug!("Creating output directory: {:?}", output_path);
-                fs::create_dir_all(output_path)
-                    .context("Failed to create output directory")?;
+                fs::create_dir_all(output_path).context("Failed to create output directory")?;
+                Ok(output_path.to_path_buf())
             }
         }
-
-        Ok(output_path.to_path_buf())
     }
-
 }
+
 impl ExporterOutput {
     // This method auto-generates the output directory.
     fn output_directory_auto_generated(&self, input_path: &Path) -> Result<PathBuf> {
@@ -392,14 +411,23 @@ impl ClipperOutput {
     }
 }
 fn create_unique_dir(parent: &Path, base_name: &str) -> Result<PathBuf> {
-    let output_path = loop {
-        // Generate a candidate name by appending two random characters.
-        let candidate_name = generate_random_name(OsStr::new(base_name));
-        let candidate_path = parent.join(candidate_name);
+    // Check if the directory with the base name already exists.
+    let base_path = parent.join(base_name);
+    if !base_path.exists() {
+        fs::create_dir_all(&base_path)
+            .with_context(|| format!("Failed to create output directory {:?}", base_path))?;
+        return Ok(base_path);
+    }
 
+    // Otherwise, append an incrementing number until a free directory is found.
+    let mut counter = 1;
+    let output_path = loop {
+        let candidate_name = format!("{}_{counter}", base_name);
+        let candidate_path = parent.join(&candidate_name);
         if !candidate_path.exists() {
             break candidate_path;
         }
+        counter += 1;
     };
 
     fs::create_dir_all(&output_path)

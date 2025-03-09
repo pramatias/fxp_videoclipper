@@ -1,5 +1,7 @@
+pub use clap::clap_derive::Subcommand;
+
 // An enum for all possible modes
-#[derive(Debug)]
+#[derive(Subcommand, Debug)]
 pub enum Modes {
     Exporter,
     Merger,

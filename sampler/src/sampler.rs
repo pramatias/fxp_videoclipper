@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 // use ctrlc;
 use log::debug;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -33,7 +33,7 @@ use crate::sample::{extract_multiple_frames, extract_single_frame};
 #[derive(Debug)]
 pub struct Sampler {
     pub video_path: PathBuf,
-    pub output_path: Option<PathBuf>,
+    pub output_path: PathBuf,
     pub duration: u64,
     pub sampling_number: usize,
 }
@@ -61,7 +61,7 @@ impl Sampler {
 
         Ok(Self {
             video_path,
-            output_path: Some(output_path),
+            output_path: output_path,
             duration,
             sampling_number,
         })
@@ -96,17 +96,14 @@ impl Sampler {
             return Err(anyhow!("Invalid video duration: must be greater than 0."));
         }
 
-        let output_path = self
-            .output_path
-            .as_ref()
-            .ok_or_else(|| anyhow!("Output path not provided"))?;
+        let output_path = &self.output_path;
 
         match self.sampling_number {
             1 => {
                 extract_single_frame(
                     &self.video_path,
                     self.duration,
-                    Path::new(output_path).to_path_buf(), // Convert &Path to PathBuf
+                    output_path.clone(), // Convert &Path to PathBuf
                     running.clone(),
                 )
                 .context("Failed to extract single frame")?;
@@ -117,7 +114,7 @@ impl Sampler {
                     &self.video_path,
                     self.duration,
                     num_frames,
-                    output_path, // Provide the output directory
+                    &output_path, // Provide the output directory
                     running.clone(),
                 )
                 .context("Failed to extract multiple frames")?;

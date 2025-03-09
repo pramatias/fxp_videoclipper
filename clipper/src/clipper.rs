@@ -82,7 +82,7 @@ impl Clipper {
         debug!("Input directory validated successfully.");
 
         // Validate MP3 if provided, and keep the original string for output directory creation.
-        let mp3_path_str = mp3_path.clone();
+        // let mp3_path_str = mp3_path.clone();
         let mp3_path = mp3_path.map(PathBuf::from);
         if let Some(ref mp3) = mp3_path {
             debug!("MP3 file provided: {:?}", mp3);
@@ -111,7 +111,7 @@ impl Clipper {
         debug!("Generated output directory: {:?}", output_directory_path);
 
         // (Optional) Log additional details from the setup.
-        let (_tmp_dir, final_out_dir, frames, total_frames) =
+        let (_tmp_dir, final_out_dir, _frames, total_frames) =
             setup_clipper_processing(&input_dir, &output_directory_path)?;
         debug!("Clipper setup complete: {} frames found", total_frames);
 

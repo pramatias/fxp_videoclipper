@@ -269,49 +269,8 @@ fn has_malformed_images(images: &[PathBuf]) -> bool {
     })
 }
 
-/// Logs a warning about improperly named files.
-///
-/// Warns if any files do not follow the expected naming format and provides examples
-/// of the incorrect names. Displays up to the first 4 improperly named files as examples.
-///
-/// # Arguments
-/// * `improperly_named_files` - A list of file names that do not conform to the expected format
-///
-/// # Notes
-/// The warning message will:
-/// 1. Show the total count of improperly named files
-/// 2. Display up to 4 examples of improperly named files
-/// 3. Indicate the expected file naming format ('image_XXXX' where XXXX is a zero-padded number)
-#[allow(dead_code)]
-fn log_improperly_named_files(improperly_named_files: &[String]) {
-    if !improperly_named_files.is_empty() {
-        let count = improperly_named_files.len();
-        let examples: Vec<_> = improperly_named_files.iter().take(4).collect();
-
-        warn!("{} files are not correctly named: {:?}. ", count, examples);
-        warn!(
-         "Files should be named in the format 'image_XXXX' (e.g., image_0001, image_0002, etc.) in increasing order."
-         );
-    }
-}
-
-/// Extracts the correct number from an image filename.
-///
-/// This function parses a numeric identifier from the beginning of a filename,
-/// ignoring any trailing parts that might exist (e.g., "_0001", "_0002").
-///
-/// # Parameters
-/// - `filename`: The image filename to extract the number from.
-///
-/// # Returns
-/// - `Option<u32>`: The extracted number if successful, otherwise `None`.
-///
-/// # Notes
-/// - The function expects filenames in the format `image_{number}_{optional_suffix}`.
-/// - Only the first numeric sequence after "image_" is considered.
-/// - For example, `image_123_0001.jpg` will return `123`.
 fn extract_correct_number(filename: &str) -> Option<u32> {
-    let re = Regex::new(r"^image_(\d+)").ok()?;
+    let re = Regex::new(r"_(\d+)").ok()?;
     re.captures(filename)
         .and_then(|caps| caps.get(1))
         .and_then(|m| m.as_str().parse::<u32>().ok())

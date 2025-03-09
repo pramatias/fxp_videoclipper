@@ -23,6 +23,7 @@ clipper = { path = "clipper"}
 
 filenames = { path = "filenames"}
 output = { path = "output"}
+owo-colors = "4.2.0"
 
 [workspace]
 members = ["init", "exporter", "clutter", "filenames", "merger", "sampler", "gmicer", "clipper", "modes", "output",]

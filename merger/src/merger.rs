@@ -5,7 +5,6 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::merge::merge_all_images;
-// use crate::output::create_output;
 
 use modes::Modes;
 use output::ModeOutput;
@@ -16,8 +15,6 @@ use filenames::SimpleValidator;
 
 pub struct Merger {
     opacity: f32,
-    directory1: PathBuf,
-    directory2: PathBuf,
     directory1_files: BTreeMap<u32, PathBuf>,
     directory2_files: BTreeMap<u32, PathBuf>,
     output_directory: PathBuf,
@@ -56,8 +53,6 @@ impl Merger {
 
         Ok(Self {
             opacity,
-            directory1: directory1_path,
-            directory2: directory2_path,
             directory1_files,
             directory2_files,
             output_directory: output_directory_path,
