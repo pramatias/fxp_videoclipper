@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use tempfile::TempDir;
 
 use modes::Modes;
 use output::ModeOutput;
@@ -13,12 +12,11 @@ use output::Output;
 use crate::image::image_processing;
 use filenames::FilenameValidator;
 use filenames::ImageMappingError;
-use filenames::TempDirValidator;
+use filenames::SimpleValidator;
 
 pub struct Gmicer {
     input_path: PathBuf,
     gmic_args: Vec<String>,
-    tmp_dir: Option<TempDir>,
     output_path: PathBuf,
     images: BTreeMap<u32, PathBuf>,
 }
@@ -45,60 +43,44 @@ impl Gmicer {
             _ => unreachable!("Expected Gmicer mode"),
         };
 
-        let (tmp_dir, images, _padding) = setup_gmic_processing(input_directory)?;
+        let (images, _padding) = setup_gmic_processing(input_directory)?;
 
         Ok(Self {
             input_path,
             gmic_args,
-            tmp_dir: Some(tmp_dir),
             output_path: output_path_buf,
             images,
         })
     }
 }
 
-/// Sets up the processing pipeline for GMIC image processing.
-///
-/// This function initializes the temporary directory and validates/fixes image filenames
-/// found in the given input directory.
-///
-/// # Parameters
-/// - `input_directory`: Path to the directory containing input images.
-/// - `gmic_args`: Vector of GMIC arguments for processing.
-///
-/// # Returns
-/// - `Result<(TempDir, image_map, image_count)>`
-///   - `TempDir`: Temporary directory for processing.
-///   - `image_map`: Mapping of image IDs to PathBuf.
-///   - `image_count`: Total number of images processed.
 fn setup_gmic_processing(
     input_directory: &str,
-) -> Result<(TempDir, BTreeMap<u32, PathBuf>, usize)> {
+) -> Result<(BTreeMap<u32, PathBuf>, usize)> {
     debug!("Starting setup_gmic_processing function");
 
     let dir_path = Path::new(input_directory);
     debug!("Input directory path: {:?}", dir_path);
 
-    let tmp_dir = TempDir::new()?;
-    let tmp_dir_path = tmp_dir.path().to_path_buf();
-    debug!("Temporary directory created at: {:?}", tmp_dir_path);
-
-    let tmp_dir_validator = TempDirValidator::new(&tmp_dir);
-    debug!("TempDirValidator initialized");
-
+    // Read all image paths from the input directory.
     let images: Vec<PathBuf> = fs::read_dir(dir_path)
         .context("Failed to read input directory")?
         .filter_map(|entry| entry.ok().map(|e| e.path()))
         .collect();
     debug!("Found {} images in input directory", images.len());
 
+    // Initialize the SimpleValidator.
+    let simple_validator = SimpleValidator {};
+    debug!("SimpleValidator initialized");
+
+    // Validate and fix image filenames using the simple validator.
     debug!("Validating and fixing image filenames");
-    let images = tmp_dir_validator
+    let image_map = simple_validator
         .validate_and_fix_image_filenames(&images)
         .map_err(|e| ImageMappingError::CopyRenameError(e.to_string()))?;
-    debug!("Total images after validation: {}", images.len());
+    debug!("Total images after validation: {}", image_map.len());
 
-    Ok((tmp_dir, images.clone(), images.len()))
+    Ok((image_map.clone(), image_map.len()))
 }
 
 impl Gmicer {
@@ -131,46 +113,7 @@ impl Gmicer {
         image_processing(&self.images, &self.gmic_args, &self.output_path)
             .context("Failed to process images")?;
 
-        // Handle temporary directories based on build mode.
-        rm_tmp_dir(
-            self.tmp_dir
-                .as_ref()
-                .map(|tmp| tmp.path().to_path_buf())
-                .as_ref(),
-        )?;
-
         Ok(())
     }
 }
 
-/// Handles temporary directories based on build mode.
-///
-/// This function manages the cleanup or retention of temporary directories.
-///
-/// # Parameters
-/// - =tmp_dir=: An optional reference to a =PathBuf= representing the temporary directory.
-///
-/// # Returns
-/// - =Result<()>=: Indicates success or failure of the operation.
-///
-/// # Notes
-/// - In release mode, the function removes the directory and logs the action.
-/// - In debug mode, the directory is retained and a message is logged instead.
-fn rm_tmp_dir(tmp_dir: Option<&PathBuf>) -> Result<()> {
-    if let Some(tmp_dir) = tmp_dir {
-        #[cfg(not(debug_assertions))]
-        {
-            fs::remove_dir_all(tmp_dir.path()).context("Failed to delete temporary directory")?;
-            debug!("Temporary directory removed in release mode.");
-        }
-
-        #[cfg(debug_assertions)]
-        {
-            debug!(
-                "Temporary directory retained for debugging: {:?}",
-                tmp_dir.as_path()
-            );
-        }
-    }
-    Ok(())
-}

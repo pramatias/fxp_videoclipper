@@ -20,7 +20,7 @@ use crate::clip::trim_merged_video;
 
 use filenames::FilenameValidator;
 use filenames::ImageMappingError;
-use filenames::TempDirValidator;
+use filenames::SimpleValidator;
 
 /// Struct for handling video processing operations.
 #[derive(Debug)]
@@ -111,7 +111,7 @@ impl Clipper {
         debug!("Generated output directory: {:?}", output_directory_path);
 
         // (Optional) Log additional details from the setup.
-        let (_tmp_dir, final_out_dir, _frames, total_frames) =
+        let (final_out_dir, _frames, total_frames) =
             setup_clipper_processing(&input_dir, &output_directory_path)?;
         debug!("Clipper setup complete: {} frames found", total_frames);
 
@@ -219,17 +219,8 @@ impl Clipper {
 fn setup_clipper_processing(
     input_directory: &Path,
     output_directory: &Path,
-) -> Result<(TempDir, PathBuf, BTreeMap<u32, PathBuf>, usize)> {
+) -> Result<(PathBuf, BTreeMap<u32, PathBuf>, usize)> {
     debug!("Starting setup for Clipper processing");
-
-    // Create a temporary directory for processing.
-    let tmp_dir = TempDir::new().context("Failed to create temporary directory")?;
-    let tmp_dir_path = tmp_dir.path().to_path_buf();
-    debug!("Temporary directory created at: {:?}", tmp_dir_path);
-
-    // Initialize TempDirValidator with the temporary directory.
-    let tmp_dir_validator = TempDirValidator::new(&tmp_dir);
-    debug!("TempDirValidator initialized");
 
     // Read the input directory and collect all file paths.
     let images: Vec<PathBuf> = fs::read_dir(input_directory)
@@ -238,10 +229,12 @@ fn setup_clipper_processing(
         .collect();
     debug!("Found {} files in input directory", images.len());
 
-    // Validate and fix image filenames using the TempDirValidator.
-    // This method is expected to filter out non-image files, fix naming issues, and return a mapping
-    // from frame indices to file paths.
-    let frames = tmp_dir_validator
+    // Initialize the SimpleValidator.
+    let simple_validator = SimpleValidator;
+    debug!("SimpleValidator initialized");
+
+    // Validate and fix image filenames using the SimpleValidator.
+    let frames = simple_validator
         .validate_and_fix_image_filenames(&images)
         .map_err(|e| ImageMappingError::CopyRenameError(e.to_string()))?;
     debug!("Total images after validation: {}", frames.len());
@@ -256,12 +249,7 @@ fn setup_clipper_processing(
     }
     info!("Found {} image frames for processing", total_frames);
 
-    Ok((
-        tmp_dir,
-        output_directory.to_path_buf(),
-        frames,
-        total_frames,
-    ))
+    Ok((output_directory.to_path_buf(), frames, total_frames))
 }
 
 /// Handles temporary directories based on build mode.

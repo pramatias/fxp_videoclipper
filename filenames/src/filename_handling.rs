@@ -1,57 +1,12 @@
-use anyhow::{Context, Result};
-use log::{debug, warn};
+// use anyhow::{Context, Result};
+use anyhow::Result;
+use log::{debug, error};
 use regex::Regex;
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::{Path, PathBuf};
-use tempfile::TempDir;
+use std::path::PathBuf;
+// use tempfile::TempDir;
 use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum ImageMappingError {
-    #[error("Duplicate numerical identifier {0} found in files: {1:?} and {2:?}")]
-    DuplicateIdentifier(u32, PathBuf, PathBuf),
-    #[error("Failed to copy or rename images: {0}")]
-    CopyRenameError(String),
-}
-
-impl FilenameValidator for TempDirValidator {
-    /// Validates and corrects image filenames, ensuring proper formatting and structure.
-    ///
-    /// This function checks image filenames for consistency, corrects them if necessary,
-    /// and maps them by numerical identifiers for organized access.
-    ///
-    /// # Parameters
-    /// - `images`: A slice of `PathBuf` objects representing the image files to validate.
-    /// - `&self`: Reference to the current instance.
-    ///
-    /// # Returns
-    /// - `Result<BTreeMap<u32, PathBuf>, ImageMappingError>`: A map of image files keyed by their numerical identifiers
-    ///   or an error if the operation fails.
-    ///
-    /// # Notes
-    /// - If filenames are already correctly formatted, they are returned unchanged.
-    /// - Malformed filenames are corrected by copying and renaming the files.
-    /// - The returned `BTreeMap` maintains files sorted by their numerical identifiers for predictable access.
-    fn validate_and_fix_image_filenames(
-        &self,
-        images: &[PathBuf],
-    ) -> Result<BTreeMap<u32, PathBuf>, ImageMappingError> {
-        debug!("Starting validation of image filenames...");
-
-        let validated_images = if !has_malformed_images(images) {
-            debug!("All images are correctly named. No need to copy or rename.");
-            images.to_vec()
-        } else {
-            debug!("Malformed images detected. Preparing to copy and rename...");
-            self.copy_and_rename_images(images, &self.tmp_dir_path)
-                .map_err(|e| ImageMappingError::CopyRenameError(e.to_string()))?
-        };
-
-        debug!("Mapping files by numerical identifiers...");
-        map_files_by_number(validated_images)
-    }
-}
 
 // Trait definition
 pub trait FilenameValidator {
@@ -61,21 +16,20 @@ pub trait FilenameValidator {
     ) -> Result<BTreeMap<u32, PathBuf>, ImageMappingError>;
 }
 
-// Validator that creates a temporary directory
-pub struct TempDirValidator {
-    tmp_dir_path: PathBuf,
-}
-
-impl TempDirValidator {
-    pub fn new(tmp_dir: &TempDir) -> Self {
-        Self {
-            tmp_dir_path: tmp_dir.path().to_path_buf(),
-        }
-    }
-}
-
 // Validator that does not create a temporary directory
 pub struct SimpleValidator;
+
+#[derive(Error, Debug)]
+pub enum ImageMappingError {
+    #[error("Duplicate numerical identifier {0} found in files: {1:?} and {2:?}")]
+    DuplicateIdentifier(u32, PathBuf, PathBuf),
+
+    #[error("Failed to rename image {0} to {1}: {2}")]
+    RenameError(PathBuf, PathBuf, String),
+
+    #[error("Failed to copy or rename images: {0}")]
+    CopyRenameError(String),
+}
 
 impl FilenameValidator for SimpleValidator {
     fn validate_and_fix_image_filenames(
@@ -84,95 +38,46 @@ impl FilenameValidator for SimpleValidator {
     ) -> Result<BTreeMap<u32, PathBuf>, ImageMappingError> {
         debug!("Starting validation of image filenames...");
 
-        map_files_by_number(images.to_vec())
+        let mut fixed_images: Vec<PathBuf> = Vec::with_capacity(images.len());
+        for image in images {
+            // Use the helper function to rename the image if needed.
+            let fixed_image = rename_image_if_malformed(image)?;
+            fixed_images.push(fixed_image);
+        }
+
+        map_files_by_number(fixed_images)
     }
 }
 
-impl TempDirValidator {
-    /// Copies and renames image files to a standardized format in a temporary directory.
-    ///
-    /// Processes each image file to ensure it follows the `image_{number}.{extension}` format,
-    /// where `number` is a zero-padded four-digit number. Copies files to the specified temporary directory.
-    ///
-    /// # Parameters
-    /// - `images`: A slice of `PathBuf` representing the image files to process.
-    /// - `tmp_dir_path`: The path to the temporary directory for copying files.
-    ///
-    /// # Returns
-    /// - `Result<Vec<PathBuf>>`: A vector of `PathBuf` pointing to the renamed image files,
-    /// or an error if copying fails.
-    ///
-    /// # Notes
-    /// - Files already matching the expected format are copied without renaming.
-    /// - Filenames with additional numbers are logged as improperly named.
-    /// - All processing steps are logged for debugging purposes.
-    fn copy_and_rename_images(
-        &self,
-        images: &[PathBuf],
-        tmp_dir_path: &Path,
-    ) -> Result<Vec<PathBuf>> {
-        let mut updated_images = Vec::new();
-        let mut improperly_named_files = Vec::new();
+/// Renames the image if its filename is malformed.
+/// Returns the new path if renamed, or the original path otherwise.
+fn rename_image_if_malformed(image: &PathBuf) -> Result<PathBuf, ImageMappingError> {
+    // Extract the file stem (filename without extension).
+    let filename: String = image
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_owned())
+        .unwrap_or_else(|| image.to_string_lossy().into_owned());
 
-        // Log the start of the process
-        debug!("Starting to copy and rename images");
-
-        for image in images {
-            // Log each image being processed
-            debug!("Processing image: {:?}", image.display());
-
-            if let Some(filename) = image.file_stem().and_then(|s| s.to_str()) {
-                if let Some(number) = extract_correct_number(filename) {
-                    let padded_name = format!("image_{:04}", number);
-                    let new_filename = format!(
-                        "{}.{}",
-                        padded_name,
-                        image.extension().and_then(|ext| ext.to_str()).unwrap_or("")
-                    );
-                    let new_path = tmp_dir_path.join(&new_filename);
-
-                    // Log when a file is deemed improperly named
-                    if is_malformed(filename) {
-                        debug!("Found improperly named file: {}", filename);
-                        improperly_named_files.push(filename.to_string());
-                    }
-
-                    if filename != padded_name {
-                        // Log before performing the copy operation
-                        debug!(
-                            "Copying and renaming {} to {}",
-                            image.display(),
-                            new_path.display()
-                        );
-
-                        fs::copy(image, &new_path).with_context(|| {
-                            format!("Failed to copy and rename file: {:?}", image)
-                        })?;
-                        updated_images.push(new_path);
-                        continue;
-                    }
-                }
-            }
-
-            // Log when using the original filename
-            debug!(
-                "Using original filename for: {}",
-                image.file_name().unwrap().to_str().unwrap()
-            );
-            let new_path = tmp_dir_path.join(image.file_name().unwrap());
-            fs::copy(image, &new_path)
-                .with_context(|| format!("Failed to copy file: {:?}", image))?;
-            updated_images.push(new_path);
+    if is_malformed(&filename) {
+        debug!("Filename '{}' is malformed, removing suffix.", filename);
+        // Remove the unwanted suffix.
+        let fixed_name = remove_suffix(&filename);
+        // Rebuild the path with the fixed filename.
+        let mut new_path = image.with_file_name(&fixed_name);
+        if let Some(ext) = image.extension() {
+            new_path.set_extension(ext);
         }
-
-        // Log any improperly named files
-        if !improperly_named_files.is_empty() {
-            warn!("Found improperly named files: {:?}", improperly_named_files);
+        // Only perform renaming if the new path is different.
+        if new_path != *image {
+            fs::rename(&image, &new_path).map_err(|e| {
+                ImageMappingError::RenameError(image.clone(), new_path.clone(), e.to_string())
+            })?;
         }
-
-        // Log the completion of the process
-        debug!("Finished copying and rename images");
-        Ok(updated_images)
+        Ok(new_path)
+    } else {
+        debug!("Filename '{}' is not malformed; skipping fix.", filename);
+        Ok(image.clone())
     }
 }
 
@@ -203,10 +108,6 @@ fn map_files_by_number(files: Vec<PathBuf>) -> Result<BTreeMap<u32, PathBuf>, Im
 
         if let Some(filename) = file.file_stem().and_then(|f| f.to_str()) {
             debug!("Found filename: {}", filename);
-
-            if is_malformed(filename) {
-                debug!("Filename is malformed, attempting to fix: {}", filename);
-            }
 
             if let Some(number) = extract_correct_number(filename) {
                 debug!("Successfully extracted number from filename: {}", number);
@@ -247,28 +148,6 @@ fn map_files_by_number(files: Vec<PathBuf>) -> Result<BTreeMap<u32, PathBuf>, Im
     Ok(map)
 }
 
-/// Checks if any image in the provided list has a malformed filename.
-/// An image is considered malformed if its filename does not match the pattern:
-/// `image_XXXX_000Y` where `XXXX` are four digits and `Y` is 1-4.
-///
-/// # Arguments
-///
-/// * `images` - A slice of file paths to images.
-///
-/// # Returns
-/// `true` if any image filename is malformed, `false` otherwise.
-fn has_malformed_images(images: &[PathBuf]) -> bool {
-    let re = Regex::new(r"^image_\d{4}_(000[1-4])$").expect("Failed to compile regex");
-
-    images.iter().any(|image| {
-        image
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .map(|filename| !re.is_match(filename)) // Negate to identify malformed images
-            .unwrap_or(true) // Consider files with invalid names as malformed
-    })
-}
-
 fn extract_correct_number(filename: &str) -> Option<u32> {
     let re = Regex::new(r"_(\d+)").ok()?;
     re.captures(filename)
@@ -279,8 +158,8 @@ fn extract_correct_number(filename: &str) -> Option<u32> {
 /// Determines if an image filename is malformed based on a specific pattern.
 ///
 /// This function checks whether a filename adheres to the following pattern:
-/// - Must start with "image_"
-/// - Followed by exactly four digits
+/// - Starts with any alphanumeric characters
+/// - Followed by an underscore and four digits
 /// - May optionally end with "_000" followed by a number between 1 and 4
 ///
 /// # Parameters
@@ -291,13 +170,61 @@ fn extract_correct_number(filename: &str) -> Option<u32> {
 /// - `false` if the filename is correctly formatted
 ///
 /// # Notes
-/// The valid format is: "image_XXXX" or "image_XXXX_000Y" where X is a digit and Y is 1-4.
+/// The valid format is: "[alphanumerics]_XXXX" or "[alphanumerics]_XXXX_000Y" where X is a digit and Y is 1-4.
 /// Examples:
-/// - "image_1234" → valid
-/// - "image_1234_0002" → valid
+/// - "img_1234" → valid
+/// - "sample_5678_0003" → valid
 /// - "image_abc" → invalid
-/// - "image_12345" → invalid
+/// - "test_12345" → invalid
 fn is_malformed(filename: &str) -> bool {
-    let re = Regex::new(r"^image_\d{4}(_000[1-4])?$").expect("Failed to compile regex");
-    !re.is_match(filename)
+    debug!("Checking if filename '{}' is malformed", filename);
+
+    let re = Regex::new(r"^[A-Za-z]+_\d+_\d+$").expect("Failed to compile regex");
+
+    debug!("Regex compiled successfully");
+
+    // If the regex matches, it indicates two underscores with numbers after both.
+    let is_match = re.is_match(filename);
+    debug!("Regex match result for '{}': {}", filename, is_match);
+
+    // Return true if it is malformed.
+    is_match
+}
+
+/// Removes the suffix "_000[1-6]" from the filename if present.
+///
+/// If the suffix is found at the end of the filename, this function returns a new
+/// string without it. Otherwise, the original filename is returned.
+fn remove_suffix(filename: &str) -> String {
+    debug!("Removing suffix from filename: '{}'", filename);
+
+    // Find the last occurrence of '_'
+    if let Some(idx) = filename.rfind('_') {
+        debug!("Found '_' at index: {}", idx);
+
+        // Extract the suffix after '_'
+        let suffix = &filename[idx + 1..];
+        debug!("Extracted suffix: '{}'", suffix);
+
+        // Check if the suffix is non-empty and consists only of ASCII digits
+        if !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()) {
+            debug!("Suffix '{}' is valid and will be removed", suffix);
+
+            // Return the filename without the suffix
+            let result = filename[..idx].to_string();
+            debug!("Filename after removing suffix: '{}'", result);
+            return result;
+        } else {
+            debug!(
+                "Suffix '{}' is invalid (not all digits or empty), keeping original filename",
+                suffix
+            );
+        }
+    } else {
+        debug!("No '_' found in filename, keeping original filename");
+    }
+
+    // Return the original filename if no valid suffix is found
+    debug!("Returning original filename: '{}'", filename);
+    filename.to_string()
 }
