@@ -10,7 +10,6 @@ use std::path::{Path, PathBuf};
 
 pub use modes::Modes;
 
-// Define a trait that creates an output directory and returns its PathBuf.
 pub trait ModeOutput {
     type Input;
     fn create_output(&self, input: Self::Input) -> Result<PathBuf>;
@@ -267,7 +266,6 @@ impl SamplerOutput {
         }
     }
 }
-
 impl ExporterOutput {
     // This method auto-generates the output directory.
     fn output_directory_auto_generated(&self, input_path: &Path) -> Result<PathBuf> {

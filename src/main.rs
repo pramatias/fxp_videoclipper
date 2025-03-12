@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use clap::{ArgAction, Args, Parser, Subcommand};
-//use clap_verbosity_flag::Verbosity;
 use clap_verbosity_flag::log::LevelFilter;
 use console::style;
 use log::{debug, warn};
@@ -26,7 +25,6 @@ pub struct Verbosity {
 }
 impl Verbosity {
     pub fn log_level_filter(&self) -> LevelFilter {
-        // Here’s a simple implementation: adjust the logic as needed.
         if self.quiet > 0 {
             LevelFilter::Warn
         } else {
@@ -345,17 +343,13 @@ fn run_gmicer(options: &GmicerOptions, _config: &Config) -> Result<()> {
     debug!("Running in GMIC mode");
 
     // Ensure that at least one GMIC argument is provided.
-    let mut args = options.gmic_args.clone().unwrap_or_default();
+    let args = options.gmic_args.clone().unwrap_or_default();
     if args.is_empty() {
         return Err(anyhow::anyhow!(
             "GMIC mode requires at least one GMIC argument."
         ));
     }
     debug!("GMIC arguments before filtering: {:?}", args);
-
-    // Filter out verbosity flags.
-    args.retain(|arg| !matches!(arg.as_str(), "-v" | "-vv" | "-vvv" | "-vvvv"));
-    debug!("GMIC arguments after filtering: {:?}", args);
 
     // Validate that the input is provided and is a directory.
     let input = &options.io.input;

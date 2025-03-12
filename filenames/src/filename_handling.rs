@@ -5,7 +5,6 @@ use regex::Regex;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
-// use tempfile::TempDir;
 use thiserror::Error;
 
 // Trait definition
@@ -16,22 +15,10 @@ pub trait FilenameValidator {
     ) -> Result<BTreeMap<u32, PathBuf>, ImageMappingError>;
 }
 
-// Validator that does not create a temporary directory
-pub struct SimpleValidator;
+pub struct PrefixSuffixValidator;
+pub struct SuffixValidator;
 
-#[derive(Error, Debug)]
-pub enum ImageMappingError {
-    #[error("Duplicate numerical identifier {0} found in files: {1:?} and {2:?}")]
-    DuplicateIdentifier(u32, PathBuf, PathBuf),
-
-    #[error("Failed to rename image {0} to {1}: {2}")]
-    RenameError(PathBuf, PathBuf, String),
-
-    #[error("Failed to copy or rename images: {0}")]
-    CopyRenameError(String),
-}
-
-impl FilenameValidator for SimpleValidator {
+impl FilenameValidator for SuffixValidator {
     fn validate_and_fix_image_filenames(
         &self,
         images: &[PathBuf],
@@ -48,6 +35,179 @@ impl FilenameValidator for SimpleValidator {
         map_files_by_number(fixed_images)
     }
 }
+
+#[derive(Error, Debug)]
+pub enum ImageMappingError {
+    #[error("Duplicate numerical identifier {0} found in files: {1:?} and {2:?}")]
+    DuplicateIdentifier(u32, PathBuf, PathBuf),
+
+    #[error("Failed to rename image {0}")]
+    RenameError(String),
+
+    #[error("Invalid filename {0:?}: {1}")]
+    InvalidFilename(PathBuf, String),
+}
+
+impl FilenameValidator for PrefixSuffixValidator {
+    fn validate_and_fix_image_filenames(
+        &self,
+        images: &[PathBuf],
+    ) -> Result<BTreeMap<u32, PathBuf>, ImageMappingError> {
+        debug!("Starting validation of image filenames...");
+
+        let mut fixed_images: Vec<PathBuf> = Vec::with_capacity(images.len());
+        debug!("Initialized fixed_images vector with capacity: {}", images.len());
+
+        for image in images {
+            debug!("Processing image: {:?}", image);
+
+            // First, fix any malformed filenames.
+            let fixed_image = rename_image_if_malformed(image)?;
+            debug!("Fixed malformed filename: {:?}", fixed_image);
+
+            fixed_images.push(fixed_image);
+            debug!("Added fixed image to fixed_images vector");
+        }
+
+        if let Some(first_image) = fixed_images.first() {
+            debug!("First image in fixed_images: {:?}", first_image);
+
+            let expected_prefix = extract_prefix(first_image)?;
+            debug!("Extracted expected prefix: {}", expected_prefix);
+
+            for image in &mut fixed_images {
+                debug!("Validating image: {:?}", image);
+
+                let current_prefix = extract_prefix(image)?;
+                debug!("Extracted current prefix: {}", current_prefix);
+
+                if current_prefix != expected_prefix {
+                    debug!(
+                        "Filename stem '{}' does not match expected stem '{}'",
+                        current_prefix, expected_prefix
+                    );
+
+                    // Delegate the renaming of the stem to a separate function.
+                    *image = fix_stem(image, &expected_prefix)?;
+                    debug!("Fixed stem for image: {:?}", image);
+                } else {
+                    debug!("Filename stem matches expected stem, no changes needed");
+                }
+            }
+        } else {
+            debug!("No images found in fixed_images vector");
+        }
+
+        debug!("Mapping files by number...");
+        let result = map_files_by_number(fixed_images)?;
+        debug!("Successfully mapped files by number");
+
+        Ok(result)
+    }
+}
+
+fn fix_stem(image: &PathBuf, expected_prefix: &str) -> Result<PathBuf, ImageMappingError> {
+    // Try to get the file's stem as a &str.
+    let filename = image.file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or(ImageMappingError::InvalidFilename(
+            image.clone(),
+            "Could not extract valid file stem".to_string(),
+        ))?;
+
+    debug!("Original filename: {}", filename);
+
+    // Split the filename at the first underscore.
+    // This separates the current prefix from the rest of the stem.
+    let new_stem = if let Some((prefix, rest)) = filename.split_once('_') {
+        debug!("Found prefix: {}, rest: {}", prefix, rest);
+        format!("{}_{}", expected_prefix, rest)
+    } else {
+        debug!("No underscore found, using expected prefix: {}", expected_prefix);
+        expected_prefix.to_string()
+    };
+
+    debug!("New stem: {}", new_stem);
+
+    // Reconstruct the new file name by appending the extension if it exists.
+    let new_filename = if let Some(ext) = image.extension().and_then(|s| s.to_str()) {
+        debug!("File extension: {}", ext);
+        format!("{}.{}", new_stem, ext)
+    } else {
+        debug!("No file extension found");
+        new_stem
+    };
+
+    debug!("New filename: {}", new_filename);
+
+    // Build the new path by replacing the file name.
+    let mut new_path = image.clone();
+    new_path.set_file_name(new_filename);
+
+    debug!("New path: {:?}", new_path);
+
+    // Rename the file and map any error to ImageMappingError.
+    fs::rename(image, &new_path)
+        .map_err(|e| ImageMappingError::RenameError(e.to_string()))?;
+
+    debug!("File successfully renamed to: {:?}", new_path);
+
+    Ok(new_path)
+}
+
+/// Extracts the prefix from the image filename.
+/// The prefix is defined as everything in the file's stem before the first underscore ('_').
+fn extract_prefix(path: &PathBuf) -> Result<String, ImageMappingError> {
+    let filename = path.file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or(ImageMappingError::InvalidFilename(
+            path.clone(),
+            "Could not extract valid file stem".to_string(),
+        ))?;
+
+    // Split at the first underscore and return the prefix.
+    match filename.split_once('_') {
+        Some((prefix, _)) => Ok(prefix.to_string()),
+        None => Ok(filename.to_string()),
+    }
+}
+
+/// Extracts the prefix (anything before the first dash) from the file’s stem.
+/// If no dash is found, returns the entire stem.
+// fn extract_prefix(path: &PathBuf) -> Result<String, ImageMappingError> {
+//     let filename = path
+//         .file_stem()
+//         .and_then(|s| s.to_str())
+//         .ok_or_else(|| {
+//                         ImageMappingError::InvalidFilename(
+//                 path.clone(),
+//                 "Filename is not valid Unicode".to_string(),
+//             )
+//         })?;
+//     Ok(filename.splitn(2, '-').next().unwrap().to_string())
+// }
+
+/// Given a file path and an expected prefix, constructs a new path whose filename
+/// has the expected prefix replacing the current one, while preserving any suffix after the dash.
+// fn rename_with_expected_prefix(path: &PathBuf, expected_prefix: &str) -> Result<PathBuf, ImageMappingError> {
+//     let filename = path
+//         .file_stem()
+//         .and_then(|s| s.to_str())
+//         .ok_or_else(|| {
+//             ImageMappingError::RenameError(
+//         format!("Invalid filename: {:?}", path),
+//     )
+
+//         })?;
+//     // Get the part after the first dash, if any.
+//     let remainder = filename.find('-').map(|idx| &filename[idx..]).unwrap_or("");
+//     let new_filename = format!("{}{}", expected_prefix, remainder);
+//     let mut new_path = path.with_file_name(&new_filename);
+//     if let Some(ext) = path.extension() {
+//         new_path.set_extension(ext);
+//     }
+//     Ok(new_path)
+// }
 
 /// Renames the image if its filename is malformed.
 /// Returns the new path if renamed, or the original path otherwise.
@@ -71,7 +231,7 @@ fn rename_image_if_malformed(image: &PathBuf) -> Result<PathBuf, ImageMappingErr
         // Only perform renaming if the new path is different.
         if new_path != *image {
             fs::rename(&image, &new_path).map_err(|e| {
-                ImageMappingError::RenameError(image.clone(), new_path.clone(), e.to_string())
+                ImageMappingError::RenameError(e.to_string())
             })?;
         }
         Ok(new_path)

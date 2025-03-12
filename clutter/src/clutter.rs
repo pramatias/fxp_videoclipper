@@ -12,7 +12,7 @@ use output::Output;
 use crate::clut::clut_all_images;
 
 use filenames::FilenameValidator;
-use filenames::SimpleValidator;
+use filenames::SuffixValidator;
 
 /// Struct responsible for applying CLUT (Color Look-Up Table) to images in a directory.
 pub struct Clutter {
@@ -104,7 +104,7 @@ fn setup_clut_processing(input_directory: &str) -> Result<BTreeMap<u32, PathBuf>
         .filter_map(|entry| entry.ok().map(|e| e.path()))
         .collect();
 
-    let validator = SimpleValidator;
+    let validator = SuffixValidator;
     let validated_input_images = validator.validate_and_fix_image_filenames(&input_images)?;
 
     Ok(validated_input_images)

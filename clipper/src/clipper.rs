@@ -3,10 +3,6 @@ use log::{debug, info};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
-// use std::sync::{
-//     atomic::{AtomicBool, Ordering},
-//     Arc,
-// };
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -20,7 +16,7 @@ use crate::clip::trim_merged_video;
 
 use filenames::FilenameValidator;
 use filenames::ImageMappingError;
-use filenames::SimpleValidator;
+use filenames::PrefixSuffixValidator;
 
 /// Struct for handling video processing operations.
 #[derive(Debug)]
@@ -157,11 +153,6 @@ impl Clipper {
                 trim_merged_video(merged_video_path, duration, self.output_path.clone())?;
             debug!("Trimmed video saved at: {:?}", trimmed_video_path);
 
-            // Copy the trimmed video to the output path.
-            // fs::copy(&trimmed_video_path, &self.output_path)
-            //     .context("Failed to copy trimmed video to output directory")?;
-            // debug!("Trimmed video copied to output path: {:?}", self.output_path);
-
             self.output_path.clone()
         } else {
             debug!("No MP3 file provided. Copying video without audio to output path...");
@@ -191,31 +182,6 @@ impl Clipper {
     }
 }
 
-/// Sets up the processing pipeline for Clipper.
-///
-/// This function:
-/// - Validates that the input directory exists.
-/// - Creates a temporary directory for intermediate processing.
-/// - Validates (or creates) the output directory:
-///   - If provided and already existing, it is removed and re-created.
-///   - Otherwise, a default output directory is created inside the input directory.
-/// - Validates that the optional MP3 file exists (if provided).
-/// - Scans the input directory for valid image files (jpg, jpeg, png),
-///   sorts them lexicographically, and maps frame indices to file paths.
-///
-/// # Parameters
-/// - `input_directory`: Directory containing video frames.
-/// - `output_directory`: Optional output directory.
-/// - `mp3_path`: Optional MP3 file path.
-/// - `fps`: Frames per second for the video (must be > 0).
-/// - `pixel_upper_limit`: Pixel limit for processing (must be > 0).
-///
-/// # Returns
-/// A tuple with:
-/// - `TempDir`: A temporary directory for processing.
-/// - `PathBuf`: The output directory path.
-/// - `BTreeMap<u32, PathBuf>`: Mapping of frame indices to file paths.
-/// - `usize`: Total number of frames found.
 fn setup_clipper_processing(
     input_directory: &Path,
     output_directory: &Path,
@@ -229,14 +195,17 @@ fn setup_clipper_processing(
         .collect();
     debug!("Found {} files in input directory", images.len());
 
-    // Initialize the SimpleValidator.
-    let simple_validator = SimpleValidator;
-    debug!("SimpleValidator initialized");
+    // Initialize the SuffixValidator.
+    let simple_validator = PrefixSuffixValidator;
+    debug!("PrefixSuffixValidator initialized");
 
-    // Validate and fix image filenames using the SimpleValidator.
+    // Validate and fix image filenames using the SuffixValidator.
     let frames = simple_validator
         .validate_and_fix_image_filenames(&images)
-        .map_err(|e| ImageMappingError::CopyRenameError(e.to_string()))?;
+        .map_err(|e| {
+    ImageMappingError::RenameError(e.to_string())
+})?;
+
     debug!("Total images after validation: {}", frames.len());
 
     let total_frames = frames.len();

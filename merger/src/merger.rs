@@ -11,7 +11,7 @@ use output::ModeOutput;
 use output::Output;
 
 use filenames::FilenameValidator;
-use filenames::SimpleValidator;
+use filenames::SuffixValidator;
 
 pub struct Merger {
     opacity: f32,
@@ -118,7 +118,7 @@ fn setup_image_processing(
     debug!("Found {} images in directory1", dir1_images.len());
     debug!("Found {} images in directory2", dir2_images.len());
 
-    let validator = SimpleValidator;
+    let validator = SuffixValidator;
 
     // Debug: Print a message before validating and fixing image filenames
     debug!("Validating and fixing image filenames in directory1");

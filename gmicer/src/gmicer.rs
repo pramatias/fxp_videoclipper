@@ -12,7 +12,7 @@ use output::Output;
 use crate::image::image_processing;
 use filenames::FilenameValidator;
 use filenames::ImageMappingError;
-use filenames::SimpleValidator;
+use filenames::SuffixValidator;
 
 pub struct Gmicer {
     input_path: PathBuf,
@@ -69,15 +69,15 @@ fn setup_gmic_processing(
         .collect();
     debug!("Found {} images in input directory", images.len());
 
-    // Initialize the SimpleValidator.
-    let simple_validator = SimpleValidator {};
-    debug!("SimpleValidator initialized");
+    // Initialize the SuffixValidator.
+    let simple_validator = SuffixValidator {};
+    debug!("SuffixValidator initialized");
 
     // Validate and fix image filenames using the simple validator.
     debug!("Validating and fixing image filenames");
     let image_map = simple_validator
         .validate_and_fix_image_filenames(&images)
-        .map_err(|e| ImageMappingError::CopyRenameError(e.to_string()))?;
+        .map_err(|e| ImageMappingError::RenameError(e.to_string()))?;
     debug!("Total images after validation: {}", image_map.len());
 
     Ok((image_map.clone(), image_map.len()))
