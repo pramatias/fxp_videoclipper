@@ -14,9 +14,8 @@ use crate::clip::create_video_without_audio;
 use crate::clip::merge_video_audio;
 use crate::clip::trim_merged_video;
 
-use filenames::FilenameValidator;
+use filenames::FileOperations;
 use filenames::ImageMappingError;
-use filenames::PrefixSuffixValidator;
 
 /// Struct for handling video processing operations.
 #[derive(Debug)]
@@ -195,17 +194,11 @@ fn setup_clipper_processing(
         .collect();
     debug!("Found {} files in input directory", images.len());
 
-    // Initialize the SuffixValidator.
-    let simple_validator = PrefixSuffixValidator;
-    debug!("PrefixSuffixValidator initialized");
-
-    // Validate and fix image filenames using the SuffixValidator.
-    let frames = simple_validator
-        .validate_and_fix_image_filenames(&images)
-        .map_err(|e| {
-    ImageMappingError::RenameError(e.to_string())
-})?;
-
+    // Use FileOperations trait implemented for Modes on the Clipper mode.
+    // This replaces the usage of PrefixSuffixValidator.
+    let frames = Modes::Clipper
+        .load_files(&images)
+        .map_err(|e| ImageMappingError::RenameError(e.to_string()))?;
     debug!("Total images after validation: {}", frames.len());
 
     let total_frames = frames.len();

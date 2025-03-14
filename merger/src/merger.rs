@@ -10,8 +10,8 @@ use modes::Modes;
 use output::ModeOutput;
 use output::Output;
 
-use filenames::FilenameValidator;
-use filenames::SuffixValidator;
+use filenames::FileOperations;
+use filenames::ImageMappingError;
 
 pub struct Merger {
     opacity: f32,
@@ -103,7 +103,6 @@ fn setup_image_processing(
     directory1: PathBuf,
     directory2: PathBuf,
 ) -> Result<(BTreeMap<u32, PathBuf>, BTreeMap<u32, PathBuf>, usize)> {
-    // Debug: Print the input directories
     debug!("Reading images from directory1: {:?}", directory1);
     debug!("Reading images from directory2: {:?}", directory2);
 
@@ -118,27 +117,21 @@ fn setup_image_processing(
     debug!("Found {} images in directory1", dir1_images.len());
     debug!("Found {} images in directory2", dir2_images.len());
 
-    let validator = SuffixValidator;
+    // Use Modes::Clipper because we are in clipper mode.
+    let mode = Modes::Merger;
 
-    // Debug: Print a message before validating and fixing image filenames
-    debug!("Validating and fixing image filenames in directory1");
-    let validated_dir1_images = validator.validate_and_fix_image_filenames(&dir1_images)?;
-    debug!("Validating and fixing image filenames in directory2");
-    let validated_dir2_images = validator.validate_and_fix_image_filenames(&dir2_images)?;
+    // Debug: Load and validate files using FileOperations trait.
+    debug!("Loading files for directory1 using FileOperations");
+    let validated_dir1_images = mode.load_files(&dir1_images)?;
+    debug!("Loading files for directory2 using FileOperations");
+    let validated_dir2_images = mode.load_files(&dir2_images)?;
 
-    // Debug: Print the number of validated images in each directory
-    debug!(
-        "Validated {} images in directory1",
-        validated_dir1_images.len()
-    );
-    debug!(
-        "Validated {} images in directory2",
-        validated_dir2_images.len()
-    );
+    // Debug: Print the number of validated images in each directory.
+    debug!("Validated {} images in directory1", validated_dir1_images.len());
+    debug!("Validated {} images in directory2", validated_dir2_images.len());
 
+    // Calculate the total images to be processed.
     let total_images = std::cmp::min(validated_dir1_images.len(), validated_dir2_images.len());
-
-    // Debug: Print the total number of images to be processed
     debug!("Total images to be processed: {}", total_images);
 
     Ok((validated_dir1_images, validated_dir2_images, total_images))

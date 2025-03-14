@@ -10,9 +10,8 @@ use output::ModeOutput;
 use output::Output;
 
 use crate::image::image_processing;
-use filenames::FilenameValidator;
+use filenames::FileOperations;
 use filenames::ImageMappingError;
-use filenames::SuffixValidator;
 
 pub struct Gmicer {
     input_path: PathBuf,
@@ -54,9 +53,7 @@ impl Gmicer {
     }
 }
 
-fn setup_gmic_processing(
-    input_directory: &str,
-) -> Result<(BTreeMap<u32, PathBuf>, usize)> {
+fn setup_gmic_processing(input_directory: &str) -> Result<(BTreeMap<u32, PathBuf>, usize)> {
     debug!("Starting setup_gmic_processing function");
 
     let dir_path = Path::new(input_directory);
@@ -69,16 +66,12 @@ fn setup_gmic_processing(
         .collect();
     debug!("Found {} images in input directory", images.len());
 
-    // Initialize the SuffixValidator.
-    let simple_validator = SuffixValidator {};
-    debug!("SuffixValidator initialized");
-
-    // Validate and fix image filenames using the simple validator.
-    debug!("Validating and fixing image filenames");
-    let image_map = simple_validator
-        .validate_and_fix_image_filenames(&images)
+    // Use FileOperations implemented for Modes::Clipper to process images.
+    debug!("Loading files using FileOperations for Clipper mode");
+    let image_map = Modes::Gmicer
+        .load_files(&images)
         .map_err(|e| ImageMappingError::RenameError(e.to_string()))?;
-    debug!("Total images after validation: {}", image_map.len());
+    debug!("Total images after processing: {}", image_map.len());
 
     Ok((image_map.clone(), image_map.len()))
 }
@@ -116,4 +109,3 @@ impl Gmicer {
         Ok(())
     }
 }
-

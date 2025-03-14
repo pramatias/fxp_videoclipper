@@ -11,8 +11,8 @@ use output::Output;
 
 use crate::clut::clut_all_images;
 
-use filenames::FilenameValidator;
-use filenames::SuffixValidator;
+use filenames::FileOperations;
+use filenames::ImageMappingError;
 
 /// Struct responsible for applying CLUT (Color Look-Up Table) to images in a directory.
 pub struct Clutter {
@@ -99,13 +99,14 @@ impl Clutter {
 fn setup_clut_processing(input_directory: &str) -> Result<BTreeMap<u32, PathBuf>> {
     let input_path = Path::new(input_directory);
 
-    // Read input images from the directory
+    // Read input images from the directory.
     let input_images: Vec<PathBuf> = fs::read_dir(input_path)?
         .filter_map(|entry| entry.ok().map(|e| e.path()))
         .collect();
 
-    let validator = SuffixValidator;
-    let validated_input_images = validator.validate_and_fix_image_filenames(&input_images)?;
+    // Use Modes::Clipper since we're in clipper mode.
+    let mode = Modes::Clipper;
+    let validated_input_images = mode.load_files(&input_images)?;
 
     Ok(validated_input_images)
 }
