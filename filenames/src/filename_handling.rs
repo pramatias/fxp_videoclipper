@@ -67,30 +67,45 @@ pub enum ImageMappingError {
 }
 
 pub fn process_files(images: &[PathBuf]) -> Result<BTreeMap<u32, PathBuf>, ImageMappingError> {
-    debug!("Starting validation of image filenames...");
+    debug!("Starting process_files...");
+
+    // First, process the images to fix malformed suffixes.
+    let mut fixed_images = check_fix_suffix(images)?;
+
+    // Next, validate and fix the prefix if needed.
+    check_fix_prefix(&mut fixed_images)?;
+
+    debug!("Mapping files by number...");
+    let result = map_files_by_number(fixed_images)?;
+    debug!("Successfully mapped files by number");
+
+    Ok(result)
+}
+
+pub fn check_fix_suffix(images: &[PathBuf]) -> Result<Vec<PathBuf>, ImageMappingError> {
+    debug!("Starting check_fix_suffix loop for image filenames suffix validation...");
 
     let mut fixed_images: Vec<PathBuf> = Vec::with_capacity(images.len());
-    debug!(
-        "Initialized fixed_images vector with capacity: {}",
-        images.len()
-    );
+    debug!("Initialized fixed_images vector with capacity: {}", images.len());
 
     for image in images {
         debug!("Processing image: {:?}", image);
-        // First, fix any malformed filenames.
-        let fixed_image = rename_image_if_malformed(image)?;
+        let fixed_image = fix_suffix(image)?;
         debug!("Fixed malformed filename: {:?}", fixed_image);
-
         fixed_images.push(fixed_image);
         debug!("Added fixed image to fixed_images vector");
     }
 
+    Ok(fixed_images)
+}
+
+pub fn check_fix_prefix(fixed_images: &mut [PathBuf]) -> Result<(), ImageMappingError> {
     if let Some(first_image) = fixed_images.first() {
         debug!("First image in fixed_images: {:?}", first_image);
         let expected_prefix = extract_prefix(first_image)?;
         debug!("Extracted expected prefix: {}", expected_prefix);
 
-        for image in &mut fixed_images {
+        for image in fixed_images.iter_mut() {
             debug!("Validating image: {:?}", image);
             let current_prefix = extract_prefix(image)?;
             debug!("Extracted current prefix: {}", current_prefix);
@@ -100,8 +115,7 @@ pub fn process_files(images: &[PathBuf]) -> Result<BTreeMap<u32, PathBuf>, Image
                     "Filename stem '{}' does not match expected stem '{}'",
                     current_prefix, expected_prefix
                 );
-                // Delegate the renaming of the stem to a separate function.
-                *image = fix_stem(image, &expected_prefix)?;
+                *image = fix_prefix(image, &expected_prefix)?;
                 debug!("Fixed stem for image: {:?}", image);
             } else {
                 debug!("Filename stem matches expected stem, no changes needed");
@@ -111,14 +125,10 @@ pub fn process_files(images: &[PathBuf]) -> Result<BTreeMap<u32, PathBuf>, Image
         debug!("No images found in fixed_images vector");
     }
 
-    debug!("Mapping files by number...");
-    let result = map_files_by_number(fixed_images)?;
-    debug!("Successfully mapped files by number");
-
-    Ok(result)
+    Ok(())
 }
 
-fn fix_stem(image: &PathBuf, expected_prefix: &str) -> Result<PathBuf, ImageMappingError> {
+fn fix_prefix(image: &PathBuf, expected_prefix: &str) -> Result<PathBuf, ImageMappingError> {
     // Try to get the file's stem as a &str.
     let filename =
         image
@@ -191,7 +201,7 @@ fn extract_prefix(path: &PathBuf) -> Result<String, ImageMappingError> {
 
 /// Renames the image if its filename is malformed.
 /// Returns the new path if renamed, or the original path otherwise.
-fn rename_image_if_malformed(image: &PathBuf) -> Result<PathBuf, ImageMappingError> {
+fn fix_suffix(image: &PathBuf) -> Result<PathBuf, ImageMappingError> {
     // Extract the file stem (filename without extension).
     let filename: String = image
         .file_stem()

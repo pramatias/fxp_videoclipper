@@ -933,9 +933,6 @@ dependencies = [
 [[package]]
 name = "modes"
 version = "0.1.0"
-dependencies = [
- "clap",
-]
 
 [[package]]
 name = "new_debug_unreachable"
