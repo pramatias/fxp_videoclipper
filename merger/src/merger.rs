@@ -11,7 +11,6 @@ use output::ModeOutput;
 use output::Output;
 
 use filenames::FileOperations;
-use filenames::ImageMappingError;
 
 pub struct Merger {
     opacity: f32,
@@ -117,7 +116,6 @@ fn setup_image_processing(
     debug!("Found {} images in directory1", dir1_images.len());
     debug!("Found {} images in directory2", dir2_images.len());
 
-    // Use Modes::Clipper because we are in clipper mode.
     let mode = Modes::Merger;
 
     // Debug: Load and validate files using FileOperations trait.
@@ -127,8 +125,14 @@ fn setup_image_processing(
     let validated_dir2_images = mode.load_files(&dir2_images)?;
 
     // Debug: Print the number of validated images in each directory.
-    debug!("Validated {} images in directory1", validated_dir1_images.len());
-    debug!("Validated {} images in directory2", validated_dir2_images.len());
+    debug!(
+        "Validated {} images in directory1",
+        validated_dir1_images.len()
+    );
+    debug!(
+        "Validated {} images in directory2",
+        validated_dir2_images.len()
+    );
 
     // Calculate the total images to be processed.
     let total_images = std::cmp::min(validated_dir1_images.len(), validated_dir2_images.len());

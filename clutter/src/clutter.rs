@@ -12,7 +12,6 @@ use output::Output;
 use crate::clut::clut_all_images;
 
 use filenames::FileOperations;
-use filenames::ImageMappingError;
 
 /// Struct responsible for applying CLUT (Color Look-Up Table) to images in a directory.
 pub struct Clutter {
