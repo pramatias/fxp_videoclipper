@@ -26,30 +26,57 @@ impl Gmicer {
         output_directory: Option<&str>,
         gmic_args: Vec<String>,
     ) -> Result<Self> {
+        debug!("Initializing new Gmicer instance");
+        debug!("Input directory: {}", input_directory);
+        debug!("Output directory: {:?}", output_directory);
+        debug!("GMIC arguments: {:?}", gmic_args);
+
         let input_path = PathBuf::from(input_directory);
+        debug!("Created input PathBuf: {:?}", input_path);
 
         // Create the output directory via the ModeOutput trait:
         let mode: Modes = Modes::Gmicer;
+        debug!("Using mode: {:?}", mode);
+
         let output: Output = mode.into();
         let output_path_buf = match output {
             Output::Gmicer(gmicer_output) => {
-                gmicer_output.create_output((
+                debug!("Creating GMICer output directory");
+                let path = gmicer_output.create_output((
                     input_path.clone(),
-                    gmic_args.clone(), // Pass gmic_args here
+                    gmic_args.clone(),
                     output_directory.map(String::from),
-                ))?
+                ))?;
+                debug!("Output directory created at: {:?}", path);
+                path
             }
-            _ => unreachable!("Expected Gmicer mode"),
+            _ => {
+                debug!("Unexpected output type encountered!");
+                unreachable!("Expected Gmicer mode")
+            }
         };
 
-        let (images, _padding) = setup_gmic_processing(input_directory)?;
+        debug!(
+            "Setting up GMIC processing for directory: {}",
+            input_directory
+        );
+        let (images, padding) = setup_gmic_processing(input_directory)?;
+        debug!("Found {} images with padding: {}", images.len(), padding);
 
-        Ok(Self {
-            input_path,
-            gmic_args,
-            output_path: output_path_buf,
-            images,
-        })
+        let gmicer = Self {
+            input_path: input_path.clone(),
+            gmic_args: gmic_args.clone(),
+            output_path: output_path_buf.clone(),
+            images: images.clone(),
+        };
+
+        debug!("Successfully created Gmicer instance:");
+        debug!("- Input path: {:?}", gmicer.input_path);
+        debug!("- Output path: {:?}", gmicer.output_path);
+        debug!("- Number of images: {}", gmicer.images.len());
+        debug!("- GMIC arguments: {:?}", gmicer.gmic_args);
+
+        Ok(gmicer)
     }
 }
 
@@ -94,7 +121,7 @@ impl Gmicer {
     pub fn gmic_images(&self) -> Result<()> {
         debug!(
             "Processing images from '{}' with GMIC arguments: {:?}",
-            self.input_path.display(), // Use `.display()` for proper formatting.
+            self.input_path.display(),
             self.gmic_args
         );
 

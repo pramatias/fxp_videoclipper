@@ -11,7 +11,7 @@ use modes::Modes;
 use output::ModeOutput;
 use output::Output;
 
-use crate::export::{cut_video_section, extract_all_frames_with_progress};
+use crate::export::{cut_duration_adjust_fps_resize, extract_all_frames_with_progress};
 
 /// Represents arguments for video export configuration.
 ///
@@ -99,10 +99,12 @@ impl Exporter {
             .context("Error setting Ctrl+C handler")?;
         }
 
-        let (cut_video_path, cut_duration) = cut_video_section(
+        // Pass the fps from the struct to the cut_video_section function.
+        let (cut_video_path, cut_duration) = cut_duration_adjust_fps_resize(
             &self.video_path.to_str().unwrap(),
             self.duration,
             self.pixel_upper_limit,
+            self.fps, // newly passed fps parameter
             running.clone(),
         )
         .context("An error occurred during video cutting")?;

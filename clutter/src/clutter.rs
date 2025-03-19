@@ -27,7 +27,12 @@ impl Clutter {
         clut_image: String,
         output_directory: Option<String>,
     ) -> Result<Self> {
-        // Convert and canonicalize the input directory.
+        debug!("Initializing new Clutter instance with:");
+        debug!("- Input directory: {}", input_directory);
+        debug!("- CLUT image: {}", clut_image);
+        debug!("- Output directory: {:?}", output_directory);
+
+        // Process input directory: convert, check and canonicalize.
         let input_directory_path = PathBuf::from(&input_directory);
         if !input_directory_path.is_dir() {
             anyhow::bail!(
@@ -41,8 +46,9 @@ impl Clutter {
                 input_directory_path.display()
             )
         })?;
+        debug!("Canonicalized input directory: {:?}", input_directory_path);
 
-        // Convert and canonicalize the CLUT image.
+        // Process CLUT image: convert, check and canonicalize.
         let clut_image_path = PathBuf::from(&clut_image);
         if !clut_image_path.is_file() {
             anyhow::bail!(
@@ -56,22 +62,46 @@ impl Clutter {
                 clut_image_path.display()
             )
         })?;
+        debug!("Canonicalized CLUT image: {:?}", clut_image_path);
 
-        // Use the Modes/Output pattern to create the output directory.
+        // Create output directory using the appropriate handler.
+        debug!("Creating output directory...");
         let mode: Modes = Modes::Clutter;
+        debug!("Using mode: {:?}", mode);
         let output: Output = mode.into();
         let output_directory_path = match output {
             Output::Clutter(clutter_output) => {
-                // Here we pass a tuple with the input directory (as base) and the optional output directory.
-                clutter_output.create_output((input_directory_path.clone(), output_directory))?
+                debug!("Using Clutter output handler to create directory");
+                let path = clutter_output
+                    .create_output((input_directory_path.clone(), output_directory))?;
+                debug!("Output directory created at: {:?}", path);
+                path
             }
-            _ => unreachable!("Expected Clutter mode"),
+            _ => {
+                debug!("Unexpected output variant encountered!");
+                unreachable!("Expected Clutter mode")
+            }
         };
+
+        // Run setup_clut_processing to populate input_files.
+        let input_directory_str = input_directory_path.to_str().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid input directory path",
+            )
+        })?;
+        let input_files = setup_clut_processing(input_directory_str)?;
+        debug!("Found {} input files for processing", input_files.len());
+
+        debug!("Successfully initialized Clutter instance:");
+        debug!("- Final input directory: {:?}", input_directory_path);
+        debug!("- Final CLUT image path: {:?}", clut_image_path);
+        debug!("- Output directory: {:?}", output_directory_path);
 
         Ok(Self {
             input_directory: input_directory_path,
             clut_image: clut_image_path,
-            input_files: BTreeMap::new(),
+            input_files,
             output_directory: output_directory_path,
         })
     }
@@ -103,8 +133,7 @@ fn setup_clut_processing(input_directory: &str) -> Result<BTreeMap<u32, PathBuf>
         .filter_map(|entry| entry.ok().map(|e| e.path()))
         .collect();
 
-    // Use Modes::Clipper since we're in clipper mode.
-    let mode = Modes::Clipper;
+    let mode = Modes::Clutter;
     let validated_input_images = mode.load_files(&input_images)?;
 
     Ok(validated_input_images)
@@ -126,26 +155,14 @@ impl Clutter {
     /// - Creates a new directory for CLUT-processed images if it doesn't exist.
     /// - Processes all images in the input directory using the specified CLUT.
     /// - Returns an error if image processing fails.
-    pub fn create_clut_images(&mut self) -> Result<String> {
+    pub fn create_clut_images(&self) -> Result<String> {
         debug!(
             "Applying CLUT from source image '{}' to images in directory '{}'",
             self.clut_image.display(),
             self.input_directory.display()
         );
 
-        // Convert the PathBuf to &str for the input directory.
-        let input_directory_str = self.input_directory.to_str().ok_or_else(|| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Invalid input directory path",
-            )
-        })?;
-
-        // Pass the converted types to the function.
-        let input_files = setup_clut_processing(input_directory_str)?;
-
-        self.input_files = input_files.clone();
-
+        // Now that `input_files` has been populated in `new()`, simply use it.
         clut_all_images(&self.clut_image, &self.input_files, &self.output_directory)?;
 
         Ok(self.output_directory.to_string_lossy().into_owned())

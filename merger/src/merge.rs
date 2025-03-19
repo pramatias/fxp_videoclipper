@@ -1,7 +1,7 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use image::{DynamicImage, GenericImageView, Rgba, RgbaImage};
 use indicatif::{ProgressBar, ProgressStyle};
-// use log::{debug, info};
+use log::debug;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -32,6 +32,9 @@ pub fn merge_all_images<P: AsRef<Path>>(
     total_images: usize,
 ) -> Result<()> {
     let output_directory = output_directory.as_ref();
+    debug!("Starting image merge with opacity: {}", opacity);
+    debug!("Output directory: {:?}", output_directory);
+    debug!("Total images to process: {}", total_images);
 
     let pb = ProgressBar::new(total_images as u64);
     pb.set_style(
@@ -42,34 +45,65 @@ pub fn merge_all_images<P: AsRef<Path>>(
             .unwrap(),
     );
 
+    debug!("Beginning image processing loop...");
     for (index, file1) in directory1_files.iter().take(total_images) {
-        if let Some(file2) = directory2_files.get(index) {
-            let img1 = image::open(file1).context("Failed to open image from directory1")?;
-            let img2 = image::open(file2).context("Failed to open image from directory2")?;
+        debug!("Processing index: {}", index);
+        debug!("Directory1 file: {:?}", file1);
 
+        if let Some(file2) = directory2_files.get(index) {
+            debug!("Found matching file in directory2: {:?}", file2);
+
+            // Load images
+            debug!("Loading images...");
+            let img1 = image::open(file1)
+                .context("Failed to open image from directory1")
+                .map_err(|e| {
+                    debug!("Error opening {:?}: {}", file1, e);
+                    e
+                })?;
+
+            let img2 = image::open(file2)
+                .context("Failed to open image from directory2")
+                .map_err(|e| {
+                    debug!("Error opening {:?}: {}", file2, e);
+                    e
+                })?;
+
+            // Resize and blend
+            debug!("Resizing image2 to match image1 dimensions...");
             let img2_resized = img2.resize(
                 img1.width(),
                 img1.height(),
                 image::imageops::FilterType::Lanczos3,
             );
+
+            debug!("Blending images with opacity: {}", opacity);
             let blended = blend_images(&img1, &img2_resized, opacity);
 
-            let padding = 4;
-            let output_path = format!(
-                "{}/image_{:0padding$}.png",
-                output_directory.display(),
-                index,
-                padding = padding
-            );
+            // Save result
+            let output_path = output_directory.join(file1.file_name().ok_or_else(|| {
+                debug!("Failed to get filename from {:?}", file1);
+                anyhow!("Failed to get file name from directory1")
+            })?);
+
+            debug!("Saving blended image to: {:?}", output_path);
             blended
                 .save(&output_path)
-                .context("Failed to save blended image")?;
+                .context("Failed to save blended image")
+                .map_err(|e| {
+                    debug!("Error saving to {:?}: {}", output_path, e);
+                    e
+                })?;
 
             pb.inc(1);
+            debug!("Processed {} images", pb.position());
+        } else {
+            debug!("No matching file in directory2 for index {}", index);
         }
     }
 
     pb.finish_with_message("All images merged successfully!");
+    debug!("Merge operation completed successfully");
 
     Ok(())
 }

@@ -1,13 +1,12 @@
+use anyhow::{bail, Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::debug;
-// use std::fs;
 use std::path::PathBuf;
 use std::process::Command as StdCommand;
-
-use anyhow::{Context, Result};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use tempfile::tempdir;
 
 /// Extracts multiple frames from a video at evenly spaced intervals.
 ///
@@ -33,9 +32,9 @@ pub fn extract_all_frames_with_progress(
     duration: f64,
     fps: u32,
     running: Arc<AtomicBool>,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     let total_frames = (duration * fps as f64) as u64;
-    log::debug!("Total frames to extract: {}", total_frames);
+    debug!("Total frames to extract: {}", total_frames);
 
     let pb = ProgressBar::new(total_frames);
     let style = ProgressStyle::default_bar()
@@ -48,7 +47,7 @@ pub fn extract_all_frames_with_progress(
     for i in 0..total_frames {
         if !running.load(Ordering::SeqCst) {
             pb.finish_with_message("");
-            log::debug!("Frame extraction interrupted by user.");
+            debug!("Frame extraction interrupted by user.");
             return Err(anyhow::anyhow!("Frame extraction interrupted by user."));
         }
 
@@ -81,7 +80,7 @@ pub fn extract_all_frames_with_progress(
     }
 
     pb.finish_with_message(" -> Frame extraction complete!");
-    log::debug!("Frame extraction completed!");
+    debug!("Frame extraction completed!");
     Ok(())
 }
 
@@ -101,16 +100,17 @@ pub fn extract_all_frames_with_progress(
 /// # Notes
 /// - Duration is converted from milliseconds to seconds for processing.
 /// - The pixel upper limit ensures video quality remains within specified bounds.
-pub fn cut_video_section(
+pub fn cut_duration_adjust_fps_resize(
     video_path: &str,
     duration: u64,
     pixel_upper_limit: u32,
+    fps: u32,
     running: Arc<AtomicBool>,
 ) -> Result<(String, f64)> {
     debug!("Processing video cut for: {}", video_path);
     debug!("Requested duration (milliseconds): {} ms", duration);
 
-    // Convert duration from milliseconds to seconds
+    // Convert duration from milliseconds to seconds.
     let duration_in_seconds = (duration as f64) / 1000.0;
     debug!(
         "Converted duration to seconds: {:.2} seconds",
@@ -120,10 +120,16 @@ pub fn cut_video_section(
     let cut_duration = duration_in_seconds;
     debug!("Calculated cut duration: {:.2} seconds", cut_duration);
 
-    // Attempt to cut and process the video with the given pixel_upper_limit
+    // Attempt to cut and process the video with the given pixel_upper_limit.
     debug!("Attempting to cut the video...");
-    let cut_video_path = cut_video(video_path, cut_duration, pixel_upper_limit, running.clone())
-        .context("Failed to cut video")?;
+    let cut_video_path = cut_video(
+        video_path,
+        cut_duration,
+        pixel_upper_limit,
+        fps, // pass the fps value to cut_video
+        running.clone(),
+    )
+    .context("Failed to cut video")?;
 
     debug!("Video successfully cut to {:.2} seconds", cut_duration);
 
@@ -153,45 +159,66 @@ fn cut_video(
     video_path: &str,
     duration: f64,
     pixel_upper_limit: u32,
+    fps: u32, // new fps parameter added here
     running: Arc<AtomicBool>,
 ) -> Result<String> {
-    let temp_cut_path = "/tmp/video_cut.mp4"; // Temporary file for cut video
-    let temp_resized_path = "/tmp/video_resized.mp4"; // Temporary file for resized video
-    let output_path = format!("/tmp/{}.mp4", video_path.trim_end_matches(".mp4")); // Final output file
+    // Create a temporary directory for intermediate files.
+    let temp_dir = tempdir().context("Failed to create temporary directory")?;
+    let temp_cut_path = temp_dir.path().join("video_cut.mp4");
+    let temp_resized_path = temp_dir.path().join("video_resized.mp4");
+
+    // Final output file is now also located in the temporary directory.
+    let output_path_buf = temp_dir
+        .path()
+        .join(format!("{}.mp4", video_path.trim_end_matches(".mp4")));
+
+    // Convert the output path (PathBuf) to a String.
+    let output_path = output_path_buf
+        .to_str()
+        .expect("Output path contains invalid UTF-8")
+        .to_string();
 
     debug!("Starting video processing for: {}", video_path);
-    debug!("Temporary cut path: {}", temp_cut_path);
-    debug!("Temporary resized path: {}", temp_resized_path);
+    debug!("Temporary cut path: {:?}", temp_cut_path);
+    debug!("Temporary resized path: {:?}", temp_resized_path);
     debug!("Output path: {}", output_path);
 
-    // Step 1: Cut the video by calling the extracted function
-    cut_video_to_duration(video_path, temp_cut_path, duration, running.clone())?;
+    // Step 1: Cut the video to the desired duration.
+    cut_video_to_duration(
+        video_path,
+        temp_cut_path
+            .to_str()
+            .expect("Temporary cut path contains invalid UTF-8"),
+        duration,
+        running.clone(),
+    )?;
 
-    // Check if the process is still running
+    // Check if the process is still running.
     if !running.load(Ordering::SeqCst) {
-        anyhow::bail!("Process interrupted by user");
+        bail!("Process interrupted by user");
     }
 
-    // Step 2: Resize the video by calling the extracted function
+    // Step 2: Resize the video.
     resize_video(
-        temp_cut_path,
-        temp_resized_path,
+        temp_cut_path
+            .to_str()
+            .expect("Temporary cut path contains invalid UTF-8"),
+        temp_resized_path
+            .to_str()
+            .expect("Temporary resized path contains invalid UTF-8"),
         pixel_upper_limit,
         running.clone(),
     )?;
 
-    // Step 3: Change the framerate to 31fps and save the final output
-    adjust_framerate(&temp_resized_path, &output_path, 31, running.clone())?;
-
-    // Step 4: Conditionally remove the temporary files
-    if cfg!(not(debug_assertions)) {
-        debug!("Cleaning up temporary files");
-        std::fs::remove_file(temp_cut_path).context("Failed to remove temporary cut file")?;
-        std::fs::remove_file(temp_resized_path)
-            .context("Failed to remove temporary resized file")?;
-    } else {
-        debug!("Debug mode enabled, skipping cleanup of temporary files");
-    }
+    // Step 3: Adjust the framerate using the provided fps value.
+    adjust_framerate(
+        temp_resized_path
+            .to_str()
+            .expect("Temporary resized path contains invalid UTF-8"),
+        &output_path,
+        fps,
+        running.clone(),
+    )?;
 
     debug!("Video processing completed successfully");
     Ok(output_path)
@@ -216,7 +243,7 @@ fn cut_video(
 /// - Returns an error if dimension parsing fails.
 fn get_video_dimensions(input_path: &str, running: Arc<AtomicBool>) -> Result<(u32, u32)> {
     if !running.load(Ordering::SeqCst) {
-        anyhow::bail!("Process interrupted by user");
+        bail!("Process interrupted by user");
     }
 
     debug!("Fetching video dimensions for input: {}", input_path);
@@ -241,7 +268,7 @@ fn get_video_dimensions(input_path: &str, running: Arc<AtomicBool>) -> Result<(u
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         debug!("FFprobe command failed with error: {}", stderr);
-        anyhow::bail!("Failed to get video dimensions: {}", stderr);
+        bail!("Failed to get video dimensions: {}", stderr);
     }
 
     // Parse the output to extract dimensions
@@ -251,7 +278,7 @@ fn get_video_dimensions(input_path: &str, running: Arc<AtomicBool>) -> Result<(u
     let dimensions: Vec<&str> = dimensions.trim().split('x').collect();
     if dimensions.len() != 2 {
         debug!("Unexpected dimensions format: {}", dimensions.join("x"));
-        anyhow::bail!("Unexpected dimensions format: {}", dimensions.join("x"));
+        bail!("Unexpected dimensions format: {}", dimensions.join("x"));
     }
 
     // Parse width and height
@@ -290,7 +317,7 @@ fn resize_video(
     running: Arc<AtomicBool>,
 ) -> Result<()> {
     if !running.load(Ordering::SeqCst) {
-        anyhow::bail!("Process interrupted by user");
+        bail!("Process interrupted by user");
     }
 
     debug!("Starting video resizing process for input: {}", input_path);
@@ -315,7 +342,7 @@ fn resize_video(
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         debug!("FFmpeg command failed with error: {}", stderr);
-        anyhow::bail!("Failed to resize video: {}", stderr);
+        bail!("Failed to resize video: {}", stderr);
     }
 
     debug!(
@@ -348,11 +375,12 @@ fn cut_video_to_duration(
     duration: f64,
     running: Arc<AtomicBool>,
 ) -> Result<()> {
-    debug!("Cutting video to {} seconds", duration);
+    let new_duration = duration + 1.0;
+    debug!("Cutting video to {} seconds", new_duration);
 
     // Check if the process is still running
     if !running.load(Ordering::SeqCst) {
-        anyhow::bail!("Process interrupted by user");
+        bail!("Process interrupted by user");
     }
 
     StdCommand::new("ffmpeg")
@@ -361,7 +389,7 @@ fn cut_video_to_duration(
             "-i",
             input_path,
             "-t",
-            &duration.to_string(),
+            &new_duration.to_string(),
             "-c",
             "copy",
             output_path,
@@ -409,7 +437,7 @@ fn adjust_framerate(
     // Check if the process is still running
     if !running.load(Ordering::SeqCst) {
         debug!("Process interrupted by user. Exiting framerate adjustment.");
-        anyhow::bail!("Process interrupted by user");
+        bail!("Process interrupted by user");
     }
 
     debug!("Executing ffmpeg command to adjust framerate...");
@@ -431,7 +459,7 @@ fn adjust_framerate(
 
     if !status.success() {
         debug!("FFmpeg command failed to adjust framerate.");
-        anyhow::bail!("Failed to change framerate");
+        bail!("Failed to change framerate");
     }
 
     debug!(
