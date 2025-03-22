@@ -3,6 +3,8 @@ use anyhow::{anyhow, Context, Result};
 use log::{debug, warn};
 use std::env;
 
+use crate::literals::FXP_VIDEOCLIPPER_FPS;
+
 /// Enum to represent the source of the FPS value
 enum FpsSource {
     CliArgument(u32),
@@ -14,7 +16,7 @@ enum FpsSource {
 ///
 /// This function prioritizes different sources in the following order:
 /// 1. Command-line argument (`cli_fps`)
-/// 2. Environment variable (`FRAME_EXPORTER_FPS`)
+/// 2. Environment variable (`FXP_VIDEOCLIPPER_FPS`)
 /// 3. Configuration file (`config.fps`)
 ///
 /// # Parameters
@@ -34,8 +36,8 @@ pub fn get_fps(cli_fps: Option<u32>, config: &Config) -> Result<u32> {
     let fps_source = if let Some(fps_value) = cli_fps {
         debug!("Using FPS provided via CLI argument: {}", fps_value);
         FpsSource::CliArgument(fps_value)
-    } else if env::var("FRAME_EXPORTER_FPS").is_ok() {
-        debug!("Using FPS from FRAME_EXPORTER_FPS environment variable.");
+    } else if env::var(FXP_VIDEOCLIPPER_FPS).is_ok() {
+        debug!("Using FPS from FXP_VIDEOCLIPPER_FPS environment variable.");
         FpsSource::EnvironmentVariable
     } else if config.fps > 0 {
         debug!("Using FPS from configuration file: {}", config.fps);
@@ -76,11 +78,11 @@ fn resolve_fps(fps_source: FpsSource) -> Result<u32> {
             Ok(fps)
         }
         FpsSource::EnvironmentVariable => {
-            debug!("Searching for FPS in FRAME_EXPORTER_FPS environment variable...");
-            let fps_str = env::var("FRAME_EXPORTER_FPS")
-                .context("Failed to read FRAME_EXPORTER_FPS environment variable")?;
+            debug!("Searching for FPS in FXP_VIDEOCLIPPER_FPS environment variable...");
+            let fps_str = env::var(FXP_VIDEOCLIPPER_FPS)
+                .context("Failed to read FXP_VIDEOCLIPPER_FPS environment variable")?;
             let fps = fps_str.parse::<u32>().context(format!(
-                "Invalid FPS value in FRAME_EXPORTER_FPS: '{}",
+                "Invalid FPS value in FXP_VIDEOCLIPPER_FPS: '{}",
                 fps_str
             ))?;
             Ok(fps)

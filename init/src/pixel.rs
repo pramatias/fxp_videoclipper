@@ -3,6 +3,8 @@ use anyhow::{anyhow, Context, Result};
 use log::{debug, warn};
 use std::env;
 
+use crate::literals::FXP_VIDEOCLIPPER_PIXEL_LIMIT;
+
 /// Enum to represent the source of the Pixel Upper Limit value
 enum PixelLimitSource {
     CliArgument(u32),
@@ -28,7 +30,7 @@ enum PixelLimitSource {
 /// # Notes
 /// - The function prioritizes sources in the following order:
 ///   1. Command-line argument (`--pixel-limit`)
-///   2. Environment variable (`FRAME_EXPORTER_PIXEL_LIMIT`)
+///   2. Environment variable (`FXP_VIDEOCLIPPER_PIXEL_LIMIT`)
 ///   3. Configuration file setting
 /// - If no valid source is available, returns an error.
 pub fn get_pixel_upper_limit(cli_pixel_limit: Option<u32>, config: &Config) -> Result<u32> {
@@ -41,9 +43,9 @@ pub fn get_pixel_upper_limit(cli_pixel_limit: Option<u32>, config: &Config) -> R
             pixel_value
         );
         PixelLimitSource::CliArgument(pixel_value)
-    } else if let Ok(env_pixel_value) = env::var("FRAME_EXPORTER_PIXEL_LIMIT") {
+    } else if let Ok(env_pixel_value) = env::var(FXP_VIDEOCLIPPER_PIXEL_LIMIT) {
         let parsed_value = env_pixel_value.parse::<u32>().context(format!(
-            "Invalid Pixel Upper Limit in FRAME_EXPORTER_PIXEL_LIMIT environment variable: '{}'",
+            "Invalid Pixel Upper Limit in FXP_VIDEOCLIPPER_PIXEL_LIMIT environment variable: '{}'",
             env_pixel_value
         ))?;
         debug!(

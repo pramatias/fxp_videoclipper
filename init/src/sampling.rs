@@ -2,6 +2,8 @@ use crate::config::Config;
 use log::debug;
 use std::env;
 
+use crate::literals::FXP_VIDEOCLIPPER_SAMPLING_NUMBER;
+
 /// Determines the sampling number based on provided parameters and configuration.
 ///
 /// # Parameters
@@ -71,13 +73,13 @@ impl Sampling {
     /// Creates a new `Sampling` based on the provided configuration.
     ///
     /// The logic is as follows:
-    /// - First, check the FRAME_EXPORTER_SAMPLING_NUMBER environment variable.
+    /// - First, check the FXP_VIDEOCLIPPER_SAMPLING_NUMBER environment variable.
     ///   If it exists and can be parsed to a positive usize, that value is used.
     /// - Otherwise, if the configuration's `sampling_number` is greater than 0, that value is used.
     /// - If neither is provided, the default value (1) is used.
     pub fn new(config: &Config) -> Self {
         // Determine the sampling number source using the enum.
-        let sampling_source = match env::var("FRAME_EXPORTER_SAMPLING_NUMBER") {
+        let sampling_source = match env::var(FXP_VIDEOCLIPPER_SAMPLING_NUMBER) {
             Ok(env_value) => match env_value.parse::<usize>() {
                 Ok(val) if val > 0 => SamplingSource::Env(val),
                 _ => {
@@ -100,7 +102,7 @@ impl Sampling {
         // Use a match statement to choose the appropriate branch based on the source.
         match sampling_source {
             SamplingSource::Env(num) => {
-                debug!("Using sampling number from FRAME_EXPORTER_SAMPLING_NUMBER environment variable: {}", num);
+                debug!("Using sampling number from FXP_VIDEOCLIPPER_SAMPLING_NUMBER environment variable: {}", num);
                 Self { number: num }
             },
             SamplingSource::Config(num) => {
