@@ -8,6 +8,8 @@ use std::{env, fs};
 use crate::literals::FXP_VIDEOCLIPPER_AUDIO;
 use crate::media_duration::media_duration;
 
+const AUDIO_EXTENSIONS: [&str; 3] = ["mp3", "wav", "flac"];
+
 /// Enum to represent the source of the audio file
 enum AudioSource {
     CliArgument(String),
@@ -264,28 +266,32 @@ impl PathType {
             Err(anyhow!("Path does not exist or is not accessible: {}", path.to_string_lossy()))
         }
     }
-
     /// Checks the path and finds the audio file.
-    /// - If it's a file, it checks that the extension is "audio".
-    /// - If it's a directory, it searches for a file with an "audio" extension.
+    /// - If it's a file, it checks that the extension is one of the supported audio extensions.
+    /// - If it's a directory, it searches for a file with a supported audio extension.
     fn find_audio(self) -> Result<String> {
         match self {
             PathType::File(path) => {
-                if path.extension().and_then(|ext| ext.to_str()) == Some("mp3") {
-                    let audio_path = path.to_string_lossy().to_string();
-                    debug!("Input is a valid audio file: {}", audio_path);
-                    Ok(audio_path)
-                } else {
-                    debug!("Input path is a file but not an audio: {}", path.to_string_lossy());
-                    Err(anyhow!("The specified file is not an audio: {}", path.to_string_lossy()))
+                if let Some(ext) = path.extension().and_then(|ext| ext.to_str()) {
+                    if AUDIO_EXTENSIONS.contains(&ext) {
+                        let audio_path = path.to_string_lossy().to_string();
+                        debug!("Input is a valid audio file: {}", audio_path);
+                        return Ok(audio_path);
+                    }
                 }
+                debug!("Input path is a file but not a supported audio file: {}", path.to_string_lossy());
+                Err(anyhow!("The specified file is not a supported audio file: {}", path.to_string_lossy()))
             },
             PathType::Directory(path) => {
                 debug!("Searching for audio file in directory: {}", path.to_string_lossy());
                 let audio_entry = fs::read_dir(&path)
                     .context(format!("Failed to read directory: {}", path.to_string_lossy()))?
                     .filter_map(Result::ok)
-                    .find(|entry| entry.path().extension().and_then(|ext| ext.to_str()) == Some("mp3"));
+                    .find(|entry| {
+                        entry.path().extension()
+                            .and_then(|ext| ext.to_str())
+                            .map_or(false, |ext| AUDIO_EXTENSIONS.contains(&ext))
+                    });
 
                 if let Some(entry) = audio_entry {
                     let audio_path = entry.path().to_string_lossy().to_string();
@@ -293,7 +299,7 @@ impl PathType {
                     Ok(audio_path)
                 } else {
                     debug!("No audio file found in directory: {}", path.to_string_lossy());
-                    Err(anyhow!("No audio file found in directory: {}", path.to_string_lossy()))
+                    Err(anyhow!("No supported audio file found in directory: {}", path.to_string_lossy()))
                 }
             },
         }
