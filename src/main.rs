@@ -92,7 +92,7 @@ pub struct ClutterOptions {
         long = "clut",
         help = "Path to the source image used for CLUT"
     )]
-    pub clut_image: Option<String>,
+    pub clut_image: String,
     /// Opacity level for merging in clutter mode (0.0 - 1.0)
     #[arg(long = "clut-opacity", help = "Opacity level for merging in clutter mode ", value_parser = clap::value_parser!(f32))]
     pub clut_opacity: Option<f32>,
@@ -203,18 +203,18 @@ struct Cli {
 enum Mode {
     /// Initialize configuration
     Init,
-    /// GMICER: Apply a GMIC command to all images in the input directory
-    Gmicer(GmicerOptions),
-    /// Clipper: Create the videoclip
-    Clipper(ClipperOptions),
-    /// Clutter: Transfer colors using a CLUT file
-    Clutter(ClutterOptions),
-    /// Sampler: Sample frames evenly across the video
-    Sampler(SamplerOptions),
-    /// Exporter: Export frames based on duration and resolution
+    /// Export frames based on duration and resolution
     Exporter(ExporterOptions),
+    /// Sample frames evenly across the video
+    Sampler(SamplerOptions),
     /// Merger: Merge two directories of images. Uses the IO input as the first directory.
     Merger(MergerOptions),
+    /// Apply a GMIC command to all images in the input directory
+    Gmicer(GmicerOptions),
+    /// Transfer colors using a CLUT file
+    Clutter(ClutterOptions),
+    /// Create the videoclip
+    Clipper(ClipperOptions),
 }
 
 fn main() -> Result<()> {
@@ -390,10 +390,7 @@ fn run_clutter(options: &ClutterOptions, config: &Config) -> Result<()> {
     debug!("Input directory: {:?}", input_dir);
 
     // Ensure the CLUT image is provided.
-    let clut_image = options
-        .clut_image
-        .as_ref()
-        .context("CLUT image is required in clutter mode")?;
+    let clut_image = &options.clut_image;
     debug!("CLUT image: {:?}", clut_image);
 
     // Create a Clutter instance using the input directory, CLUT image, and output.

@@ -256,11 +256,6 @@ impl SamplerOutput {
                                 fs::remove_file(&file_path).context(
                                     "Failed to remove existing file in directory target",
                                 )?;
-                            } else if file_path.is_dir() {
-                                debug!("Unexpected directory inside directory target, removing it: {:?}", file_path);
-                                fs::remove_dir_all(&file_path).context(
-                                    "Failed to remove existing directory in directory target",
-                                )?;
                             }
                         }
                         File::create(&file_path)
@@ -444,10 +439,7 @@ fn generate_random_name(base: &OsStr) -> String {
 fn create_explicit_output_directory(output_dir: &str) -> Result<PathBuf> {
     debug!("Output directory provided: {:?}", output_dir);
     let output_path = Path::new(output_dir);
-    if output_path.exists() {
-        debug!("Output directory exists, removing it: {:?}", output_path);
-        fs::remove_dir_all(output_path).context("Failed to remove existing output directory")?;
-    }
+
     debug!("Creating output directory: {:?}", output_path);
     fs::create_dir_all(output_path).context("Failed to create output directory")?;
     Ok(output_path.to_path_buf())

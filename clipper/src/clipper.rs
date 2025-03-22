@@ -9,7 +9,6 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-use tempfile::TempDir;
 
 use modes::Modes;
 use output::ModeOutput;
@@ -130,10 +129,16 @@ impl Clipper {
     pub fn clip(&self) -> Result<PathBuf> {
         debug!("Starting video clipping process...");
 
-        // Create a temporary directory for the processed frames.
-        let tmp_dir = TempDir::new().context("Failed to create temporary directory")?;
-        let tmp_dir_path = tmp_dir.path().to_path_buf();
-        debug!("Temporary directory created at: {:?}", tmp_dir_path);
+            // Define the temporary directory path.
+    let tmp_dir_path = PathBuf::from("/tmp/fxp_videoclipper");
+
+    // If the directory exists, remove it to start fresh.
+    if tmp_dir_path.exists() {
+        fs::remove_dir_all(&tmp_dir_path)
+            .context("Failed to remove existing temporary directory")?;
+        debug!("Existing temporary directory removed: {:?}", tmp_dir_path);
+    }
+
 
         // Set up the running flag and register a Ctrl-C handler.
         let running = Arc::new(AtomicBool::new(false));

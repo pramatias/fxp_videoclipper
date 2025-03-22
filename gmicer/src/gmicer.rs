@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use std::collections::HashSet;
+use console::style;
 
 use modes::Modes;
 use output::ModeOutput;
@@ -133,6 +135,70 @@ impl Gmicer {
         image_processing(&self.images, &self.gmic_args, &self.output_path)
             .context("Failed to process images")?;
 
+warn_on_multiple_image_output(&self.output_path)
+    .context("Failed to warn on multiple image output")?;
+
         Ok(())
+    }
+}
+
+/// Collects unique numbers from filenames in the given output directory.
+/// The function looks for filenames with at least two underscores and extracts the substring
+/// between the second underscore and the file extension if it contains only digits.
+/// Returns a sorted vector of unique number strings.
+fn warn_on_multiple_image_output(output_path: &Path) -> Result<()> {
+    let mut unique_numbers = HashSet::new();
+
+    // Iterate over all entries in the directory
+    for entry in fs::read_dir(output_path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_file() {
+            if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
+                // Find all underscore positions in the filename.
+                let underscore_positions: Vec<_> = filename.match_indices('_').collect();
+
+                // Ensure there is a second underscore.
+                if underscore_positions.len() >= 2 {
+                    // Get the index of the second underscore.
+                    let second_uscore_idx = underscore_positions[1].0;
+
+                    // Find the position of the last dot to exclude the file extension.
+                    if let Some(dot_idx) = filename.rfind('.') {
+                        // Extract the substring after the second underscore until the dot.
+                        let candidate = &filename[second_uscore_idx + 1..dot_idx];
+
+                        // Check if the candidate consists only of digits.
+                        if !candidate.is_empty() && candidate.chars().all(|c| c.is_ascii_digit()) {
+                            unique_numbers.insert(candidate.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Convert the HashSet into a sorted Vec.
+    let mut unique_list: Vec<_> = unique_numbers.into_iter().collect();
+    unique_list.sort();
+
+    // Log the warning message with the unique numbers.
+    display_warn_message(&unique_list);
+
+    Ok(())
+}
+
+/// Logs a warning message in yellow displaying the provided unique numbers.
+pub fn display_warn_message(numbers: &[String]) {
+    if !numbers.is_empty() {
+        println!(
+            "{}",
+            style(format!(
+                "Unique numbers found in output files: {}",
+                numbers.join(", ")
+            ))
+            .yellow()
+        );
     }
 }

@@ -310,7 +310,6 @@ dependencies = [
  "output",
  "rand",
  "regex",
- "tempfile",
  "thiserror 2.0.11",
 ]
 
@@ -355,9 +354,9 @@ dependencies = [
 
 [[package]]
 name = "console"
-version = "0.15.10"
+version = "0.15.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea3c6ecd8059b57859df5c69830340ed3c41d30e3da0c1cbed90a96ac853041b"
+checksum = "054ccb5b10f9f2cbf51eb355ca1d05c2d279ce1804688d0db74b4733a5aeafd8"
 dependencies = [
  "encode_unicode",
  "libc",
@@ -518,7 +517,6 @@ dependencies = [
  "modes",
  "output",
  "rand",
- "tempfile",
 ]
 
 [[package]]
@@ -559,7 +557,6 @@ dependencies = [
  "log",
  "modes",
  "regex",
- "tempfile",
  "thiserror 2.0.11",
 ]
 
@@ -634,6 +631,7 @@ name = "gmicer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "console",
  "ctrlc",
  "filenames",
  "indicatif",
@@ -642,7 +640,6 @@ dependencies = [
  "output",
  "rand",
  "regex",
- "tempfile",
  "thiserror 2.0.11",
 ]
 

@@ -12,7 +12,6 @@ rand = "0.8.0"
 
 modes = { path = "../modes"}
 output = { path = "../output"}
-tempfile = "3.19.0"
 
 [lib]
 name = "exporter"

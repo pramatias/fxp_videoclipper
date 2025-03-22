@@ -159,7 +159,7 @@ pub fn extract_multiple_frames(
         pb.set_message(format!("Extracting frame {} at {} ms", i + 1, timestamp_ms));
 
         // Build output file path by joining directory with a generated filename.
-        let output_file_path = output_dir.join(format!("output_frame_{}.png", i + 1));
+        let output_file_path = output_dir.join(format!("sample_frame_{}.png", i + 1));
         log::debug!("Output file set to: {:?}", output_file_path);
 
         // Convert timestamp to seconds.
