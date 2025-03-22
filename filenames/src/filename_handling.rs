@@ -96,7 +96,7 @@ pub trait FileOperations {
 ///   corrected file paths, or an error if duplicates are found.
 ///
 /// # Notes
-/// - Filenames are corrected to the format `image_{number}.{extension}`.
+/// - Filenames are corrected to the format `frame_{number}.{extension}`.
 /// - If duplicate numeric identifiers are detected, an error is returned.
 fn map_files_by_number(
     files: Vec<PathBuf>,
@@ -116,7 +116,7 @@ fn map_files_by_number(
                 debug!("Successfully extracted number from filename: {}", number);
 
                 let corrected_filename = format!(
-                    "image_{:04}.{}",
+                    "frame_{:04}.{}",
                     number,
                     file.extension().and_then(|ext| ext.to_str()).unwrap_or("")
                 );

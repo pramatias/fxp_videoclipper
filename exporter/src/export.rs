@@ -1,12 +1,11 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::debug;
 use std::path::PathBuf;
+use std::fs;
 use std::process::Command as StdCommand;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tempfile::tempdir;
 
 /// Extracts multiple frames from a video at evenly spaced intervals.
 ///
@@ -48,10 +47,10 @@ pub fn extract_all_frames_with_progress(
         if !running.load(Ordering::SeqCst) {
             pb.finish_with_message("");
             debug!("Frame extraction interrupted by user.");
-            return Err(anyhow::anyhow!("Frame extraction interrupted by user."));
+            return Err(anyhow!("Frame extraction interrupted by user."));
         }
 
-        let output_file = output_dir.join(format!("image_{:04}.png", i + 1));
+        let output_file = output_dir.join(format!("frame_{:04}.png", i + 1));
 
         StdCommand::new("ffmpeg")
             .args(&[
@@ -105,6 +104,7 @@ pub fn cut_duration_adjust_fps_resize(
     duration: u64,
     pixel_upper_limit: u32,
     fps: u32,
+    tmp_dir_path: PathBuf,
     running: Arc<AtomicBool>,
 ) -> Result<(String, f64)> {
     debug!("Processing video cut for: {}", video_path);
@@ -126,7 +126,8 @@ pub fn cut_duration_adjust_fps_resize(
         video_path,
         cut_duration,
         pixel_upper_limit,
-        fps, // pass the fps value to cut_video
+        fps,
+        tmp_dir_path,
         running.clone(),
     )
     .context("Failed to cut video")?;
@@ -160,17 +161,16 @@ fn cut_video(
     duration: f64,
     pixel_upper_limit: u32,
     fps: u32, // new fps parameter added here
+    tmp_dir_path: PathBuf,
     running: Arc<AtomicBool>,
 ) -> Result<String> {
-    // Create a temporary directory for intermediate files.
-    let temp_dir = tempdir().context("Failed to create temporary directory")?;
-    let temp_cut_path = temp_dir.path().join("video_cut.mp4");
-    let temp_resized_path = temp_dir.path().join("video_resized.mp4");
+    // Create the temporary directory if it doesn't exist.
+    fs::create_dir_all(&tmp_dir_path).context("Failed to create temporary directory")?;
 
-    // Final output file is now also located in the temporary directory.
-    let output_path_buf = temp_dir
-        .path()
-        .join(format!("{}.mp4", video_path.trim_end_matches(".mp4")));
+    let temp_cut_path = tmp_dir_path.join("video_cut.mp4");
+    let temp_resized_path = tmp_dir_path.join("video_resized.mp4");
+
+    let output_path_buf = tmp_dir_path.join(format!("{}.mp4", video_path.trim_end_matches(".mp4")));
 
     // Convert the output path (PathBuf) to a String.
     let output_path = output_path_buf

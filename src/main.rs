@@ -107,7 +107,7 @@ pub struct ClutterOptions {
 #[derive(Args, Debug)]
 struct SamplerOptions {
     #[command(flatten)]
-    io: InputOutput,
+    io: ExporterInputOutput,
 
     /// Extract multiple frames (Sampler)
     #[arg(short = 'u', long = "multiple", help = "Extract multiple frames", action = ArgAction::SetTrue)]
@@ -272,6 +272,49 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn run_gmicer(options: &GmicerOptions, _config: &Config) -> Result<()> {
+    debug!("Running in GMIC mode");
+
+    // Validate that the input is provided and is a directory.
+    let input = &options.io.input;
+    let input_path = Path::new(input);
+    if !input_path.is_dir() {
+        return Err(anyhow::anyhow!(
+            "For GMIC mode, the input must be a directory: {}",
+            input
+        ));
+    }
+    debug!("GMIC input directory: {:?}", input_path);
+
+    // Ensure that at least one GMIC argument is provided.
+    let args = options.gmic_args.clone().unwrap_or_default();
+    if args.is_empty() {
+        return Err(anyhow::anyhow!(
+            "GMIC mode requires at least one GMIC argument."
+        ));
+    }
+    debug!("GMIC arguments before filtering: {:?}", args);
+
+    // Filter out any "-o" flag and capture its associated argument.
+    let (filtered_args, explicit_output) = filter_output_flag(args);
+    debug!("GMIC arguments after filtering: {:?}", filtered_args);
+    debug!("Captured output flag value: {:?}", explicit_output);
+
+    // Determine the output regardless of it's position to the command
+    // Contained amongst args is different than be put somewhere else
+    let output = explicit_output.or_else(|| options.io.output.clone());
+    debug!("Final GMIC output directory: {:?}", output);
+
+    // Create the GMIC processor instance using the input, output, and filtered GMIC args.
+    let gmicer = gmicer::Gmicer::new(input, output.as_deref(), filtered_args)
+        .context("Failed to initialize GMIC processor")?;
+    gmicer
+        .gmic_images()
+        .context("Failed to process images using GMIC")?;
+
+    Ok(())
+}
+
 fn run_merger(options: &MergerOptions, config: &Config) -> Result<()> {
     // Resolve the opacity using the value provided in the merger options.
     let opacity =
@@ -335,39 +378,6 @@ fn run_clipper(options: &ClipperOptions, config: &Config) -> Result<()> {
     // Run the clip process.
     clipper.clip()?;
     debug!("Clip process completed successfully");
-
-    Ok(())
-}
-
-fn run_gmicer(options: &GmicerOptions, _config: &Config) -> Result<()> {
-    debug!("Running in GMIC mode");
-
-    // Ensure that at least one GMIC argument is provided.
-    let args = options.gmic_args.clone().unwrap_or_default();
-    if args.is_empty() {
-        return Err(anyhow::anyhow!(
-            "GMIC mode requires at least one GMIC argument."
-        ));
-    }
-    debug!("GMIC arguments before filtering: {:?}", args);
-
-    // Validate that the input is provided and is a directory.
-    let input = &options.io.input;
-    let input_path = Path::new(input);
-    if !input_path.is_dir() {
-        return Err(anyhow::anyhow!(
-            "For GMIC mode, the input must be a directory: {}",
-            input
-        ));
-    }
-    debug!("GMIC input directory: {:?}", input_path);
-
-    // Create the GMIC processor instance using the input, output, and filtered GMIC args.
-    let gmicer = gmicer::Gmicer::new(input, options.io.output.as_deref(), args)
-        .context("Failed to initialize GMIC processor")?;
-    gmicer
-        .gmic_images()
-        .context("Failed to process images using GMIC")?;
 
     Ok(())
 }
@@ -450,27 +460,17 @@ fn run_sampler(options: &SamplerOptions, config: &Config) -> Result<()> {
         return Err(anyhow::anyhow!("Video path must be provided."));
     }
 
-    // Determine the output directory using get_audio_dir.
     let output_dir = get_audio_dir(options.io.output.clone(), config)
         .context("Failed to resolve audio directory for sampler mode")?;
     let output_path = Some(output_dir.to_string_lossy().to_string());
     debug!("Video path: {}, Output path: {:?}", video_path, output_path);
 
     // Resolve duration using the exporter options embedded in common_options.
-    let mp3_provided = options.common_options.mp3.is_some();
-    let duration_provided = options.common_options.duration.is_some();
     let mp3_path = options.common_options.mp3.clone();
     let duration_arg = options.common_options.duration.clone();
 
-    let duration = get_duration(
-        mp3_provided,
-        duration_provided,
-        &video_path,
-        mp3_path,
-        duration_arg,
-        config,
-    )
-    .context("Failed to resolve duration for sampler mode")?;
+    let duration = get_duration(&video_path, mp3_path, duration_arg, config)
+        .context("Failed to resolve duration for sampler mode")?;
     debug!("Final duration to use: {} milliseconds", duration);
 
     // Get the sampling number based on the 'multiple' flag and 'number' option.
@@ -507,20 +507,11 @@ fn run_exporter(options: &ExporterOptions, config: &Config) -> Result<()> {
     debug!("Video path: {}", video_path);
     debug!("Output path: {:?}", output_path);
 
-    let mp3_provided = options.common.mp3.is_some();
-    let duration_provided = options.common.duration.is_some();
     let mp3_path = options.common.mp3.clone();
     let duration_arg = options.common.duration.clone();
 
-    let duration = get_duration(
-        mp3_provided,
-        duration_provided,
-        video_path,
-        mp3_path,
-        duration_arg,
-        config,
-    )
-    .context("Failed to resolve duration")?;
+    let duration = get_duration(video_path, mp3_path, duration_arg, config)
+        .context("Failed to resolve duration")?;
     debug!("Final duration to use: {} milliseconds", duration);
 
     let cli_fps = options
@@ -548,7 +539,7 @@ fn run_exporter(options: &ExporterOptions, config: &Config) -> Result<()> {
         pixel_upper_limit,
     )?;
     exporter.export_images()?;
-    debug!("Initialized exporter: {:?}", exporter);
+    debug!("Finished running exporter: {:?}", exporter);
 
     Ok(())
 }
@@ -591,4 +582,27 @@ fn merging(
     }
 
     Ok(output_directories)
+}
+
+/// Helper function that filters out any occurrence of "-o" and its following argument,
+/// returning a tuple of (filtered arguments, Option<output_flag_value>).
+fn filter_output_flag(args: Vec<String>) -> (Vec<String>, Option<String>) {
+    let mut filtered_args = Vec::new();
+    let mut output_flag_value = None;
+    let mut skip_next = false;
+    for arg in args.into_iter() {
+        if skip_next {
+            // Capture the argument following "-o" as the output flag value.
+            output_flag_value = Some(arg);
+            skip_next = false;
+            continue;
+        }
+        if arg == "-o" {
+            // Skip this argument and mark the next one for capturing.
+            skip_next = true;
+            continue;
+        }
+        filtered_args.push(arg);
+    }
+    (filtered_args, output_flag_value)
 }

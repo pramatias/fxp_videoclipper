@@ -126,6 +126,39 @@ impl ModeOutput for ClipperOutput {
 }
 
 /// Enum representing the output type.
+impl GmicerOutput {
+    /// Automatically generates an output directory name based on the input path and GMIC arguments.
+    fn output_directory_auto_generated(
+        &self,
+        input_path: &Path,
+        gmic_args: &[String],
+    ) -> Result<PathBuf> {
+        let first_arg = gmic_args
+            .first()
+            .ok_or_else(|| anyhow!("GMIC arguments should not be empty"))?;
+        debug!("First GMIC argument: {}", first_arg);
+        debug!("Input path: {:?}", input_path);
+
+        let base_directory_name = format!(
+            "{}_{}",
+            input_path
+                .file_name()
+                .unwrap_or_else(|| OsStr::new("input"))
+                .to_string_lossy(),
+            first_arg
+        );
+
+        // Determine the parent directory for the new directory.
+        let parent_dir = input_path.parent().unwrap_or_else(|| Path::new("."));
+
+        // Use the helper function to create a unique directory.
+        let output_path = create_unique_dir(parent_dir, &base_directory_name)
+            .with_context(|| format!("Failed to create output directory under {:?}", parent_dir))?;
+
+        debug!("Output directory created successfully: {:?}", output_path);
+        Ok(output_path)
+    }
+}
 enum OutputType {
     File,
     Directory,
@@ -295,39 +328,6 @@ impl ClutterOutput {
 
         let parent = input_path.parent().unwrap_or_else(|| Path::new("."));
         create_unique_dir(parent, &base_directory_name)
-    }
-}
-impl GmicerOutput {
-    /// Automatically generates an output directory name based on the input path and GMIC arguments.
-    fn output_directory_auto_generated(
-        &self,
-        input_path: &Path,
-        gmic_args: &[String],
-    ) -> Result<PathBuf> {
-        let first_arg = gmic_args
-            .first()
-            .ok_or_else(|| anyhow!("GMIC arguments should not be empty"))?;
-        debug!("First GMIC argument: {}", first_arg);
-        debug!("Input path: {:?}", input_path);
-
-        let base_directory_name = format!(
-            "{}_{}",
-            input_path
-                .file_name()
-                .unwrap_or_else(|| OsStr::new("input"))
-                .to_string_lossy(),
-            first_arg
-        );
-
-        // Determine the parent directory for the new directory.
-        let parent_dir = input_path.parent().unwrap_or_else(|| Path::new("."));
-
-        // Use the helper function to create a unique directory.
-        let output_path = create_unique_dir(parent_dir, &base_directory_name)
-            .with_context(|| format!("Failed to create output directory under {:?}", parent_dir))?;
-
-        debug!("Output directory created successfully: {:?}", output_path);
-        Ok(output_path)
     }
 }
 impl ClipperOutput {

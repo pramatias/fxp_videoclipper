@@ -33,7 +33,7 @@ pub fn get_audio_dir(cli_audio: Option<String>, config: &Config) -> Result<PathB
     debug!("Determining audio directory...");
 
     // Capture the audio directory from configuration (if available and not empty)
-    let config_audio_dir = config.mp3_path.clone().filter(|s| !s.trim().is_empty());
+    let config_audio_dir = config.audio_path.clone().filter(|s| !s.trim().is_empty());
 
     // Determine the audio directory source
     let audio_dir_source = if let Some(cli_dir) = cli_audio {

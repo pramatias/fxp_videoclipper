@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
-    /// Optional MP3 path
-    pub mp3_path: Option<String>,
+    /// Optional AUDIO path
+    pub audio_path: Option<String>,
     /// Frames per second
     pub fps: u32,
     /// Upper limit for pixels
@@ -28,7 +28,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Config {
-            mp3_path: None,
+            audio_path: None,
             fps: 30,                    // Adjust default FPS if needed
             pixel_upper_limit: 480,     // Adjust default pixel limit if needed
             sampling_number: 10,        // Adjust default sample count if needed
@@ -51,17 +51,17 @@ pub fn initialize_configuration() -> Result<()> {
     let mut config: Config =
         confy::load("fxp_videoclipper", "config").context("Failed to load configuration")?;
 
-    // Prompt the user to update the MP3 path
-    let current_mp3 = config
-        .mp3_path
+    // Prompt the user to update the AUDIO path
+    let current_audio = config
+        .audio_path
         .clone()
         .unwrap_or_else(|| String::from("none"));
-    config.mp3_path = Input::new()
+    config.audio_path = Input::new()
         .with_prompt(format!(
-            "Enter the default MP3 path (current: {}) (leave empty to skip)",
-            current_mp3
+            "Enter the default AUDIO path (current: {}) (leave empty to skip)",
+            current_audio
         ))
-        .default(config.mp3_path.clone().unwrap_or_default())
+        .default(config.audio_path.clone().unwrap_or_default())
         .allow_empty(true)
         .interact()
         .ok();

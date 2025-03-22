@@ -2,7 +2,7 @@ use crate::config::Config;
 use crate::media_duration::media_duration;
 use crate::mp3::get_audio_duration;
 use anyhow::{Context, Result};
-use log::{debug, warn};
+use log::debug;
 
 /// Determines the duration of a video or its corresponding MP3 audio.
 ///
@@ -28,61 +28,50 @@ use log::{debug, warn};
 /// - `mp3_path` should be provided when `mp3_provided` is `true`.
 /// - `duration_arg` should be provided when `duration_provided` is `true`.
 pub fn get_duration(
-    mp3_provided: bool,
-    duration_provided: bool,
     video_path: &str,
     mp3_path: Option<String>,
     duration_arg: Option<String>,
     config: &Config,
 ) -> Result<u64> {
     debug!("Getting duration with parameters:");
-    debug!("  mp3_provided: {}", mp3_provided);
-    debug!("  duration_provided: {}", duration_provided);
     debug!("  video_path: {}", video_path);
     debug!("  mp3_path: {:?}", mp3_path);
     debug!("  duration_arg: {:?}", duration_arg);
 
-    let default_mp3_path = String::new();
-    let mp3_path = mp3_path.unwrap_or(default_mp3_path);
-    debug!("Using MP3 path: {}", mp3_path);
-
-    let calculated_duration = match (mp3_provided, duration_provided) {
-        (true, false) => {
+    let calculated_duration = match (mp3_path, duration_arg) {
+        (Some(mp3), None) => {
             debug!("MP3 provided, duration not provided. Using MP3 duration.");
-            let duration = get_audio_duration(Some(mp3_path.clone()), config)
-                .context("Error determining MP3 duration (true, false)")?
+            let duration = get_audio_duration(Some(mp3.clone()), config)
+                .context("Error determining MP3 duration")?
                 .ok_or_else(|| anyhow::anyhow!("MP3 duration not found"))?;
             debug!("MP3 duration: {:?}", duration);
             duration
         }
-        (false, true) => {
+        (None, Some(dur_str)) => {
             debug!("Duration provided, MP3 not provided. Using provided duration.");
-            let duration = duration_arg
-                .and_then(|d| d.parse::<u64>().ok())
-                .ok_or_else(|| anyhow::anyhow!("Invalid or missing duration argument"))?;
+            let duration = dur_str
+                .parse::<u64>()
+                .map_err(|_| anyhow::anyhow!("Invalid duration argument"))?;
             debug!("Provided duration: {:?}", duration);
             duration
         }
-        (true, true) => {
-            debug!("Both MP3 path and duration arguments provided. Defaulting to explicitly set duration.");
-            let duration = duration_arg
-                .and_then(|d| d.parse::<u64>().ok())
-                .ok_or_else(|| anyhow::anyhow!("Invalid or missing duration argument"))?;
+        (Some(_), Some(dur_str)) => {
+            debug!("Both MP3 path and duration argument provided. Defaulting to explicitly set duration.");
+            let duration = dur_str
+                .parse::<u64>()
+                .map_err(|_| anyhow::anyhow!("Invalid duration argument"))?;
             debug!("Provided duration: {:?}", duration);
-
             duration
         }
-        (false, false) => {
+        (None, None) => {
             debug!("Neither MP3 nor duration provided. Checking for MP3 duration first.");
-            if let Some(duration) = get_audio_duration(None, config)
-                .context("Error determining MP3 duration (false, false)")?
+            if let Some(duration) =
+                get_audio_duration(None, config).context("Error determining MP3 duration")?
             {
                 debug!("Found MP3 duration: {:?}", duration);
                 duration
             } else {
                 debug!("MP3 duration not found. Falling back to video duration.");
-
-                // Fallback to video duration
                 let duration =
                     media_duration(video_path).context("Error determining video duration")?;
                 debug!("Video duration: {:?}", duration);
@@ -91,45 +80,30 @@ pub fn get_duration(
         }
     };
 
-    // Validate the calculated duration against the video duration
-    validate_duration(calculated_duration, video_path)?;
-
-    Ok(calculated_duration)
+    let final_duration = minimum_duration(calculated_duration, video_path)?;
+    Ok(final_duration)
 }
 
-/// Validates the calculated duration against the video duration.
+/// Returns the minimum of the calculated duration and the video's actual duration.
 ///
-/// This function compares the calculated duration with the actual video duration,
-/// issuing warnings if the calculated duration exceeds the video duration.
-///
-/// # Parameters
-/// - `calculated_duration`: The duration to validate (in seconds).
-/// - `video_path`: Path to the video file.
-///
-/// # Returns
-/// - `Result<()>`: Indicates success or failure of the validation.
-///
-/// # Notes
-/// - If the calculated duration is longer than the video duration, a warning is logged.
-/// - A debug message is logged when the duration is valid.
-pub fn validate_duration(calculated_duration: u64, video_path: &str) -> Result<()> {
-    // Get the video duration
+/// This function gets the video duration from `video_path` and compares it to the `calculated_duration`.
+/// If the calculated duration exceeds the video's duration, it returns the video's duration.
+/// Otherwise, it returns the calculated duration.
+pub fn minimum_duration(calculated_duration: u64, video_path: &str) -> Result<u64> {
     let video_duration = media_duration(video_path)
-        .context("Error determining video duration in validate_duration")?;
+        .context("Error determining video duration in minimum_duration")?;
 
-    // Compare the durations
-    if video_duration < calculated_duration {
-        let difference = calculated_duration - video_duration;
-        warn!(
-            "Duration ({}) greater than video duration ({}). Difference: {} seconds.",
-            calculated_duration, video_duration, difference
+    if calculated_duration > video_duration {
+        debug!(
+            "Calculated duration ({}) is greater than video duration ({}). Using video duration.",
+            calculated_duration, video_duration
         );
+        Ok(video_duration)
     } else {
         debug!(
             "Calculated duration ({}) is within video duration ({}).",
             calculated_duration, video_duration
         );
+        Ok(calculated_duration)
     }
-
-    Ok(())
 }

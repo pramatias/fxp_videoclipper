@@ -1,9 +1,14 @@
 use anyhow::{anyhow, Context, Result};
+use ctrlc;
 use log::{debug, info};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use tempfile::TempDir;
 
 use modes::Modes;
@@ -130,26 +135,43 @@ impl Clipper {
         let tmp_dir_path = tmp_dir.path().to_path_buf();
         debug!("Temporary directory created at: {:?}", tmp_dir_path);
 
-        // Create the video without audio.
+        // Set up the running flag and register a Ctrl-C handler.
+        let running = Arc::new(AtomicBool::new(false));
+        let running_clone = running.clone();
+        ctrlc::set_handler(move || {
+            running_clone.store(true, Ordering::Relaxed);
+        })
+        .expect("Error setting Ctrl-C handler");
+
+        // Create the video without audio, passing the running flag.
         debug!("Creating video without audio...");
-        let video_path_no_audio =
-            create_video_without_audio(&self.input_dir, self.fps, &tmp_dir_path, &self.output_path);
+        let video_path_no_audio = create_video_without_audio(
+            &self.input_dir,
+            self.fps,
+            &tmp_dir_path,
+            &self.output_path,
+            running.clone(),
+        );
         debug!("Video without audio created at: {:?}", video_path_no_audio);
 
         // Process the video based on whether an MP3 is provided.
         let final_video_path = if let Some(mp3) = &self.mp3_path {
             debug!("MP3 file provided: {:?}. Merging video and audio...", mp3);
 
-            // Merge the video with the audio.
-            let merged_video_path = merge_video_audio(&video_path_no_audio, mp3);
+            // Merge the video with the audio, passing the interruption flag.
+            let merged_video_path = merge_video_audio(&video_path_no_audio, mp3, running.clone());
             debug!("Video and audio merged at: {:?}", merged_video_path);
 
             // Unwrap duration (handle None case as needed)
             let duration = self.duration.expect("duration must be provided");
             debug!("Trimming merged video to duration: {} ms", duration);
 
-            let trimmed_video_path =
-                trim_merged_video(merged_video_path, duration, self.output_path.clone())?;
+            let trimmed_video_path = trim_merged_video(
+                merged_video_path,
+                duration,
+                self.output_path.clone(),
+                running.clone(),
+            )?;
             debug!("Trimmed video saved at: {:?}", trimmed_video_path);
 
             self.output_path.clone()
@@ -231,7 +253,8 @@ fn rm_tmp_dir(tmp_dir: Option<&PathBuf>) -> Result<()> {
     if let Some(tmp_dir) = tmp_dir {
         #[cfg(not(debug_assertions))]
         {
-            fs::remove_dir_all(tmp_dir.path()).context("Failed to delete temporary directory")?;
+            fs::remove_dir_all(tmp_dir.as_path())
+                .context("Failed to delete temporary directory")?;
             debug!("Temporary directory removed in release mode.");
         }
 

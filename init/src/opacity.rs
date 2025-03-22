@@ -3,6 +3,8 @@ use anyhow::{Context, Result};
 use log::{debug, warn};
 use std::env;
 
+use crate::literals::FXP_VIDEOCLIPPER_OPACITY;
+
 /// Enum to represent the source of the Opacity value
 enum OpacitySource {
     CliArgument(f32),
@@ -23,13 +25,13 @@ pub fn get_opacity(cli_opacity: Option<f32>, config: &Config) -> Result<f32> {
             opacity_value
         );
         OpacitySource::CliArgument(opacity_value)
-    } else if let Ok(env_opacity_value) = env::var("EMP_TRANSFER_COLORS_OPACITY") {
+    } else if let Ok(env_opacity_value) = env::var(FXP_VIDEOCLIPPER_OPACITY) {
         let parsed_value = env_opacity_value.parse::<f32>().context(format!(
-            "Invalid Opacity value in EMP_TRANSFER_COLORS_OPACITY environment variable: '{}",
+            "Invalid Opacity value in FXP_VIDEOCLIPPER_OPACITY environment variable: '{}",
             env_opacity_value
         ))?;
         debug!(
-            "Using Opacity value from EMP_TRANSFER_COLORS_OPACITY environment variable: {}",
+            "Using Opacity value from FXP_VIDEOCLIPPER_OPACITY environment variable: {}",
             parsed_value
         );
         OpacitySource::EnvironmentVariable(parsed_value)

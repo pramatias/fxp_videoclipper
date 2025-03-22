@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use ctrlc;
-use log::debug;
+use log::{debug, warn};
+use std::fs;
 use std::path::PathBuf;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -99,12 +100,14 @@ impl Exporter {
             .context("Error setting Ctrl+C handler")?;
         }
 
-        // Pass the fps from the struct to the cut_video_section function.
+        let tmp_dir_path = std::path::PathBuf::from("/tmp/fxp_videoclipper");
+
         let (cut_video_path, cut_duration) = cut_duration_adjust_fps_resize(
             &self.video_path.to_str().unwrap(),
             self.duration,
             self.pixel_upper_limit,
-            self.fps, // newly passed fps parameter
+            self.fps,
+            tmp_dir_path.clone(),
             running.clone(),
         )
         .context("An error occurred during video cutting")?;
@@ -118,21 +121,36 @@ impl Exporter {
         )
         .context("An error occurred during frame extraction")?;
 
-        debug!("Frame extraction completed for video: {}", cut_video_path);
-
-        if cfg!(debug_assertions) {
-            debug!(
-                "Debug mode detected, not deleting cut video path: {}",
-                cut_video_path
-            );
-        } else {
-            debug!(
-                "Release mode detected, deleting cut video path: {}",
-                cut_video_path
-            );
-            std::fs::remove_file(&cut_video_path).context("Failed to clean up cut video file")?;
+        if let Err(e) = delete_temporary_dir(tmp_dir_path.clone()) {
+            warn!("Delete of temporary directory failed: {}", e);
         }
 
         Ok(())
     }
+}
+
+fn delete_temporary_dir(tmp_dir: PathBuf) -> Result<()> {
+    if cfg!(debug_assertions) {
+        debug!(
+            "Debug mode detected, not deleting temporary path: {}",
+            tmp_dir.display()
+        );
+    } else {
+        debug!(
+            "Release mode detected, deleting temporary path: {}",
+            tmp_dir.display()
+        );
+        if tmp_dir.is_dir() {
+            fs::remove_dir_all(&tmp_dir).context(format!(
+                "Failed to delete up directory: {}",
+                tmp_dir.display()
+            ))?;
+        } else {
+            fs::remove_file(&tmp_dir).context(format!(
+                "Failed to delete temporary file: {}",
+                tmp_dir.display()
+            ))?;
+        }
+    }
+    Ok(())
 }
