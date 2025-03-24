@@ -177,6 +177,41 @@ fxp_videoclipper merger \
 - **Opacity (`--opacity`)**: Adjusts the blending; in this example, the opacity is set to 0.7.
 
 With these instructions, users should be able to effectively utilize the merger functionality in fxp_videoclipper.
+* GMIC Command Guide
+This section explains how to use the GMIC command to apply a GMIC operation to all images within an input directory.
+
+** Overview
+The `gmicer` command processes each image in the input directory by applying a GMIC command with specified arguments. Additional GMIC arguments can be provided to customize the image processing, and an output directory may be specified to store the processed images.
+
+** Command Usage
+#+BEGIN_SRC bash
+fxp_videoclipper gmicer [OPTIONS] --input <INPUT> [GMIC_ARGS]...
+#+END_SRC
+
+** Options and Arguments
+- **-i, --input <INPUT>**
+  Input directory containing the images to process.
+- **-o, --output <OUTPUT>**
+  (Optional) Output directory where the processed images will be saved.
+- **[GMIC_ARGS]...**
+  Arguments that are directly passed to the GMIC command.
+
+** Example Usage
+Below is an example that applies a GMIC command to all images in the input directory:
+
+#+BEGIN_SRC bash
+fxp_videoclipper gmicer \
+  --input path/to/input_directory \
+  --output path/to/output_directory \
+  -fx_dreamsmooth 10,0.5,0.8,1
+#+END_SRC
+
+** Explanation
+- **Input Directory (`--input`)**: Specifies the folder containing the images you want to process.
+- **Output Directory (`--output`)**: Defines where the processed images will be saved; if omitted, the program may use default handling.
+- **GMIC Arguments (`[GMIC_ARGS]...`)**: Additional arguments passed to GMIC, allowing for customizable image processing. In the example, the GMIC command `-fx_dreamsmooth 10,0.5,0.8,1` is applied to each image.
+
+This guide helps users understand how to leverage the GMIC functionality within `fxp_videoclipper` for batch image processing.
 
 * Contributing
 Contributions are welcome! Please see CONTRIBUTING.org for guidelines on how to help improve fxp_videoclipper.
