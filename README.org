@@ -1,0 +1,106 @@
+#+TITLE: fxp_videoclipper README
+#+AUTHOR: emporas
+#+DATE: 2025-03-24
+
+* Overview
+fxp_videoclipper is an open source tool for easy videoclip creation with optional GMIC mode. It supports several subcommands including exporter, sampler, merger, gmicer, clutter, and clipper. This tool allows you to extract frames from a video, sample frames evenly, merge images, apply GMIC commands, transfer colors via CLUT, and create complete video clips.
+
+* Installation
+To install the tool, clone the repository and compile the project:
+
+  #+BEGIN_SRC bash
+  git clone https://github.com/yourusername/fxp_videoclipper.git
+  cd fxp_videoclipper
+  cargo build --release
+  #+END_SRC
+
+Make sure you have Rust and Cargo installed.
+
+* Usage
+The main command is `fxp_videoclipper`, which accepts global options and subcommands. To view the general help message:
+
+  #+BEGIN_SRC bash
+  fxp_videoclipper -h
+  #+END_SRC
+
+For detailed help on each subcommand, append `-h` to the command name. For example, for the exporter:
+
+  #+BEGIN_SRC bash
+  fxp_videoclipper exporter -h
+  #+END_SRC
+
+* Exporter Command
+The exporter mode extracts frames from a video based on duration and resolution. It supports the following options:
+
+- **-i, --input**: Input video file.
+- **-o, --output**: Output directory to save frames.
+- **-p, --pixel-limit**: Maximum upper limit for pixel resolution.
+- **-a, --audio**: Optional MP3 file path.
+- **-d, --duration**: Duration in milliseconds to cut the video.
+- **-f, --fps**: Frames per second to extract.
+
+Below are several examples demonstrating how to use the exporter command.
+
+**Example 1: Basic Extraction**
+
+Extract frames from a video with a specified duration and FPS, saving them to an output directory.
+
+#+BEGIN_SRC bash
+fxp_videoclipper exporter \
+  --input path/to/sample_video.mp4 \
+  --output path/to/output_frames \
+  --duration 30000 \
+  --fps 25
+#+END_SRC
+
+**Explanation:**
+- Extract frames from *sample_video.mp4*.
+- Output frames are stored in *output_frames*.
+- The video is cut to 30,000 milliseconds (30 seconds).
+- 25 frames are extracted per second.
+
+**Example 2: Extraction with Pixel Limit and Audio Overlay**
+
+Extract frames using a pixel resolution upper limit and include an MP3 file for synchronization.
+
+#+BEGIN_SRC bash
+fxp_videoclipper exporter \
+  --input path/to/sample_video.mp4 \
+  --output path/to/output_frames \
+  --pixel-limit 1920 \
+  --audio path/to/sample_audio.mp3 \
+  --duration 45000 \
+  --fps 30
+#+END_SRC
+
+**Explanation:**
+- Uses a pixel limit of 1920 to ensure frames do not exceed this resolution.
+- An optional audio file (*sample_audio.mp3*) is provided.
+- The video clip is cut to 45 seconds with 30 frames per second.
+
+**Example 3: Minimal Command Usage**
+
+For a simple extraction without audio or pixel limitations, just provide the essential parameters.
+
+#+BEGIN_SRC bash
+fxp_videoclipper exporter -i sample_video.mp4 -o frames_output -d 20000 -f 15
+#+END_SRC
+
+**Explanation:**
+- Uses shorthand flags for input (-i) and output (-o).
+- Extracts frames from the first 20 seconds at 15 FPS.
+
+* Additional Documentation
+For more information on other commands and detailed configuration options, refer to the respective sections below:
+
+- *Sampler*: Sample frames evenly from a video.
+- *Merger*: Merge two directories of images.
+- *Gmicer*: Apply a GMIC command to images.
+- *Clutter*: Transfer colors using a CLUT file.
+- *Clipper*: Create the videoclip.
+
+* Contributing
+Contributions are welcome! Please see CONTRIBUTING.org for guidelines on how to help improve fxp_videoclipper.
+
+* License
+fxp_videoclipper is released under the MIT License. See LICENSE for details.
