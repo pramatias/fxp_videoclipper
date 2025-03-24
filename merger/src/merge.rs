@@ -5,25 +5,25 @@ use log::debug;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-/// Merges and processes images from two directories, blending them with specified opacity.
+/// Merges images from two directories into a single output directory.
 ///
-/// This function takes two directories containing images and an opacity value. It processes each image pair by resizing the second image to match the first's dimensions, blending them with the specified opacity, and saving the result in an output directory.
+/// This function combines pairs of images from two directories, blending them with specified opacity.
+/// It ensures consistent output formatting and handles errors gracefully.
 ///
 /// # Parameters
-/// - `directory1`: Path to the first directory containing images to process.
-/// - `directory2`: Path to the second directory containing images to process.
-/// - `opacity`: A float between 0.0 and 1.0 that determines the transparency of the overlay image.
+/// - `directory1_files`: BTreeMap of images from the first directory
+/// - `directory2_files`: BTreeMap of images from the second directory
+/// - `output_directory`: Path to save the merged images
+/// - `opacity`: Opacity level for blending images
+/// - `total_images`: Total number of images to process
 ///
 /// # Returns
-/// - `Result<()>`: Indicates success or failure of the operation.
+/// - `Result<()>`: Indicates success or failure of the merge operation
 ///
 /// # Notes
-/// - The function creates an output directory based on `directory1` and the opacity value.
-/// - Images are resized using the Lanczos3 filtering for high-quality resizing.
-/// - Filenames are padded with leading zeros to maintain a consistent naming scheme.
-/// - A progress bar is displayed to track the processing of images.
-/// - If no matching images are found in `directory2`, a debug message is logged, and processing continues with available pairs.
-/// Refactored function to merge images using parameters from setup.
+/// - Images are resized to match before blending
+/// - Output filenames match the first directory's files
+/// - Both directories must have matching image indices for merging
 pub fn merge_all_images<P: AsRef<Path>>(
     directory1_files: &BTreeMap<u32, PathBuf>,
     directory2_files: &BTreeMap<u32, PathBuf>,

@@ -1,30 +1,30 @@
 use anyhow::{anyhow, bail, Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use log::debug;
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 use std::process::Command as StdCommand;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-/// Extracts multiple frames from a video at evenly spaced intervals.
+/// Extracts all frames from a video file with progress indication.
 ///
-/// This function extracts a specified number of frames from a video,
-/// distributing them evenly over the video's duration.
+/// This function extracts frames from a video at specified intervals and displays a progress bar.
+/// It can be interrupted, stopping the extraction process.
 ///
 /// # Parameters
-/// - `video`: Path to the video file
-/// - `duration_ms`: Total duration of the video in milliseconds
-/// - `num_frames`: Number of frames to extract
-/// - `running`: Flag to check if the operation should continue
+/// - `video`: Input video file path.
+/// - `output_dir`: Directory to save the extracted frames.
+/// - `duration`: Video duration in seconds.
+/// - `fps`: Frames per second to determine the number of frames.
+/// - `running`: Flag to control the extraction process continuation.
 ///
 /// # Returns
-/// - `Result<()>`: Indicates success or failure of the operation
+/// - `Result<()>`: Indicates if the extraction completed successfully or encountered an error.
 ///
 /// # Notes
-/// - The video duration must be greater than 2 seconds for frame extraction
-/// - Frames are extracted at uniform intervals between 1 second after start and 1 second before end
-/// - The `running` flag can be used to cancel the operation prematurely
+/// - The extracted frames are named in the format `frame_0001.png`, `frame_0002.png`, etc.
+/// - If the process is interrupted, returns an error message.
 pub fn extract_all_frames_with_progress(
     video: &str,
     output_dir: PathBuf,
@@ -83,22 +83,35 @@ pub fn extract_all_frames_with_progress(
     Ok(())
 }
 
-/// Processes a video by cutting a section based on specified duration and pixel limits.
+/// Processes a video by cutting it to a specified duration, adjusting FPS,
+/// and resizing based on a pixel limit.
 ///
-/// This function handles video processing with options for duration and pixel quality.
+/// This function handles video processing in multiple steps:
+/// - Cuts the video to the specified duration
+/// - Adjusts the FPS (frames per second)
+/// - Resizes the video based on pixel upper limit
+/// - Uses a temporary directory for processing
+/// - Monitors if the process is still running
 ///
 /// # Parameters
-/// - `video_path`: Path to the video file to process.
-/// - `duration`: Desired duration in milliseconds.
-/// - `pixel_upper_limit`: Maximum allowed pixel value for quality control.
-/// - `running`: Atomic boolean to track if the operation should continue.
+/// - `video_path`: Path to the input video file
+/// - `duration`: Desired duration of the output video in milliseconds
+/// - `pixel_upper_limit`: Maximum allowed pixels for resizing
+/// - `fps`: Target frames per second for the output video
+/// - `tmp_dir_path`: Temporary directory for processing files
+/// - `running`: Flag to check if processing should continue
 ///
 /// # Returns
-/// - `Result<(String, f64)>`: A tuple containing the path to the processed video and the duration in seconds. Returns an error if processing fails.
+/// - `Result<(String, f64)>`: Tuple containing:
+///   - Path to the processed video file
+///   - Duration of the output video in seconds
 ///
 /// # Notes
-/// - Duration is converted from milliseconds to seconds for processing.
-/// - The pixel upper limit ensures video quality remains within specified bounds.
+/// - The function uses FFmpeg under the hood for video processing
+/// - Temporary files are stored in the specified temporary directory
+/// - Processing stops if `running` is set to false
+/// - Returns an error if video cutting or resizing fails
+/// - If the requested duration is longer than the source video, it returns the original video
 pub fn cut_duration_adjust_fps_resize(
     video_path: &str,
     duration: u64,
@@ -139,23 +152,21 @@ pub fn cut_duration_adjust_fps_resize(
 
 /// Processes a video by cutting, resizing, and adjusting framerate.
 ///
-/// This function performs three main operations on a video file:
-/// 1. Cuts the video to a specified duration
+/// This function handles video processing in three main steps:
+/// 1. Cuts the video to the specified duration
 /// 2. Resizes the video based on pixel limit
-/// 3. Adjusts the framerate to 31fps
+/// 3. Adjusts the video framerate
 ///
 /// # Parameters
 /// - `video_path`: Path to the input video file
-/// - `duration`: Desired duration of the output video in seconds
-/// - `pixel_upper_limit`: Maximum pixel size for resizing
-/// - `running`: Atomic flag to track if the process should continue
+/// - `duration`: Desired duration of the output video
+/// - `pixel_upper_limit`: Maximum allowed pixel size for resizing
+/// - `fps`: Frames per second for the output video
+/// - `tmp_dir_path`: Temporary directory for processing files
+/// - `running`: Atomic boolean to track if process should continue
 ///
 /// # Returns
-/// - `Result<String>`: Path to the processed video file on success
-///
-/// # Notes
-/// - Creates temporary files during processing
-/// - Deletes temporary files unless in debug mode
+/// - `Result<String>`: Path to the processed video file or error
 fn cut_video(
     video_path: &str,
     duration: f64,
@@ -224,23 +235,22 @@ fn cut_video(
     Ok(output_path)
 }
 
-/// Retrieves the dimensions (width and height) of a video using ffprobe.
+/// Fetches the dimensions (width and height) of a video file using ffprobe.
 ///
 /// This function executes an ffprobe command to extract video stream information
-/// and parses the output to obtain width and height.
+/// and parse the dimensions from the output.
 ///
 /// # Parameters
-/// - `input_path`: The path to the video file.
-/// - `running`: A flag indicating whether the process should continue.
+/// - `input_path`: Path to the video file as a string.
+/// - `running`: A flag to check if the process should continue running.
 ///
 /// # Returns
-/// - `Result<(u32, u32)>`: The video dimensions as a tuple (width, height).
-/// - Returns an error if the process is interrupted or if ffprobe execution fails.
+/// - `Result<(u32, u32)>`: A tuple containing the video width and height in pixels.
+///                            Returns an error if dimensions cannot be parsed.
 ///
 /// # Notes
-/// - The function uses `ffprobe` to fetch video stream details.
-/// - Dimensions are parsed as unsigned 32-bit integers.
-/// - Returns an error if dimension parsing fails.
+/// - The function will bail if the process has been interrupted by the user.
+/// - Relies on ffprobe being available in the system PATH.
 fn get_video_dimensions(input_path: &str, running: Arc<AtomicBool>) -> Result<(u32, u32)> {
     if !running.load(Ordering::SeqCst) {
         bail!("Process interrupted by user");

@@ -39,6 +39,22 @@ pub struct Sampler {
 }
 
 impl Sampler {
+    /// Creates a new Sampler instance for video processing.
+    ///
+    /// This function initializes a Sampler with the specified parameters and sets up the output directory.
+    ///
+    /// # Parameters
+    /// - `video_path`: The path to the video file to process.
+    /// - `output_path`: An optional path for the output directory; if not provided, a default will be used.
+    /// - `duration`: The duration of the video in seconds.
+    /// - `sampling_number`: The number of samples to take from the video.
+    ///
+    /// # Returns
+    /// - `Result<Self>`: Returns `Ok` if the Sampler was created successfully, `Err` if there was an issue creating the output directory.
+    ///
+    /// # Notes
+    /// - The output directory will be created if it does not already exist.
+    /// - If `output_path` is not provided, a default output path will be generated.
     pub fn new(
         video_path: String,
         output_path: Option<String>,
@@ -69,21 +85,24 @@ impl Sampler {
 }
 
 impl Sampler {
-    /// Processes video frames based on specified sampling parameters.
+    /// Processes video frames for sampling based on specified criteria.
     ///
-    /// This method handles video frame extraction with support for single or multiple frames.
-    /// It ensures proper handling of processing interruption and validates input parameters.
+    /// This function handles the extraction of frames from a video file, either as a single frame or multiple evenly spaced frames.
     ///
     /// # Parameters
-    /// - `running`: An atomic boolean flag indicating whether processing should continue.
+    /// - `running`: A flag indicating whether the process should continue.
+    /// - `video_path`: Path to the video file to process.
+    /// - `duration`: Total duration of the video.
+    /// - `output_path`: Directory where the output images will be saved.
+    /// - `sampling_number`: Number of frames to extract (1 for single, >1 for multiple).
     ///
     /// # Returns
-    /// - `Result<()>`: Indicates success or failure of the processing operation.
+    /// - `Result<()>`: Indicates success or failure of the operation.
     ///
     /// # Notes
-    /// - The method exits early if the `running` flag is set to false.
-    /// - Validates that video duration is greater than zero.
-    /// - Supports sampling of a single frame or multiple evenly spaced frames.
+    /// - If `running` is false, the function exits early.
+    /// - If `duration` is 0, returns an error as it's an invalid value.
+    /// - Based on `sampling_number`, the function will either extract a single frame or multiple frames.
     pub fn sample_images(&self, running: Arc<AtomicBool>) -> Result<()> {
         debug!("Starting sample processing with arguments: {:?}", self);
 

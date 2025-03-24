@@ -21,7 +21,23 @@ pub struct Merger {
 }
 
 impl Merger {
-    /// Creates a new instance of `Merger` and sets up the image processing environment.
+    /// Creates a new `Merger` instance and initializes the image processing environment.
+    ///
+    /// This function sets up the necessary file paths and parameters for merging images.
+    ///
+    /// # Parameters
+    /// - `directory1`: The first directory containing images to process.
+    /// - `directory2`: The second directory containing images to process.
+    /// - `opacity`: The opacity value used for image merging (0.0 to 1.0).
+    /// - `output_directory`: Optional output directory for the merged images.
+    ///
+    /// # Returns
+    /// - `Result<Self>`: A new `Merger` instance or an error if initialization fails.
+    ///
+    /// # Notes
+    /// - If `output_directory` is not provided, a default location is used.
+    /// - The function validates and prepares image files from both input directories.
+    /// - Image processing is configured with the specified opacity value.
     pub fn new(
         directory1: String,
         directory2: String,
@@ -61,7 +77,22 @@ impl Merger {
 }
 
 impl Merger {
-    /// Merges images from two directories using the provided opacity and returns the output directory or an error.
+    /// Merges images from two directories using specified opacity and returns the output directory or an error.
+    ///
+    /// This function combines images from two directories, applies the given opacity, and saves the merged results to the output directory.
+    ///
+    /// # Parameters
+    /// - `directory1_files`: The first directory containing image files to merge.
+    /// - `directory2_files`: The second directory containing image files to merge.
+    /// - `output_directory`: The directory where merged images will be saved.
+    /// - `opacity`: The opacity level applied during the merging process.
+    /// - `total_images`: The total number of images to be merged.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: The path to the output directory on success, or an error if merging fails.
+    ///
+    /// # Notes
+    /// - The function provides contextual error information if the merging process fails.
     pub fn merge_images(&self) -> Result<PathBuf> {
         merge_all_images(
             &self.directory1_files,
@@ -76,28 +107,24 @@ impl Merger {
     }
 }
 
-/// Prepares image processing by validating filenames and organizing directory paths.
+/// Sets up image processing by reading, validating, and preparing images from two directories.
 ///
-/// This function processes two directories of images, ensuring filenames are correctly formatted.
-/// It prepares the necessary paths and parameters for subsequent image operations.
+/// This function reads image files from two specified directories, validates them,
+/// and prepares them for further processing.
 ///
 /// # Parameters
-/// - `directory1`: Path to the first directory containing images.
-/// - `directory2`: Path to the second directory containing images.
-/// - `opacity`: The opacity level used for image processing.
-/// - `output_directory`: Optional path for output; if none, a default is created.
+/// - `directory1`: Path to the first directory containing images to process.
+/// - `directory2`: Path to the second directory containing images to process.
 ///
 /// # Returns
-/// - `Result<(...)>`: A tuple containing:
-///   - `BTreeMap<u32, PathBuf>`: Validated image paths for directory1.
-///   - `BTreeMap<u32, PathBuf>`: Validated image paths for directory2.
-///   - `String`: Output directory path.
-///   - `usize`: Total number of images to process.
-///   - `usize`: Padding value for image numbering.
+/// - `Result<(BTreeMap<u32, PathBuf>, BTreeMap<u32, PathBuf>, usize)>`:
+///   - A tuple containing two maps of validated image paths (one for each directory)
+///     and the total number of images to be processed.
 ///
 /// # Notes
-/// - The output directory is created if not provided.
-/// - Filenames are validated and corrected automatically.
+/// - Only processes images present in both directories.
+/// - Uses the `FileOperations` trait for loading and validating image files.
+/// - Logs debug information about the processing steps and image counts.
 fn setup_image_processing(
     directory1: PathBuf,
     directory2: PathBuf,

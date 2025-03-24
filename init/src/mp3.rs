@@ -17,6 +17,11 @@ enum AudioSource {
     FromConfigFile(String),
 }
 
+enum PathType {
+    File(PathBuf),
+    Directory(PathBuf),
+}
+
 /// Retrieves the duration of an audio audio file from various sources.
 ///
 /// This function determines the audio file source based on the provided input,
@@ -159,7 +164,10 @@ pub fn get_audio_file(cli_audio: Option<String>, config: &Config) -> Result<Opti
 ///
 /// # Notes
 /// - Prioritizes sources in the order: CLI argument > Export directory > Configuration file.
-fn resolve_audio_path(audio_source: AudioSource, config_path: Option<String>) -> Result<Option<String>> {
+fn resolve_audio_path(
+    audio_source: AudioSource,
+    config_path: Option<String>,
+) -> Result<Option<String>> {
     debug!("Resolving audio path based on the provided source...");
 
     let mut config_audio_result: Option<Result<String>> = None;
@@ -235,40 +243,49 @@ fn resolve_audio_path(audio_source: AudioSource, config_path: Option<String>) ->
     })
 }
 
-/// Locates and validates an audio file from a given path or directory.
-///
-/// This function checks if the provided path is a file or directory. If it's a file,
-/// it verifies if it's an audio. If it's a directory, it searches for an audio file within.
-///
-/// # Parameters
-/// - `path_or_dir`: A string representing the path to a file or directory to search.
-///
-/// # Returns
-/// - `Result<String>`: The path to the found audio file on success. Returns an error if no audio is found or if the path is invalid.
-///
-/// # Notes
-/// - If the path is a directory, the function returns the first audio file found.
-/// - If no audio file is found in the directory, an error is returned
-/// Enum to represent a path that is either a file or a directory.
-enum PathType {
-    File(PathBuf),
-    Directory(PathBuf),
-}
-
 impl PathType {
     /// Creates a `PathType` from a given `Path`.
+    ///
+    /// This function determines whether the provided path points to a file or directory,
+    /// and constructs the appropriate `PathType` accordingly.
+    ///
+    /// # Parameters
+    /// - `path`: The path to evaluate as either a file or directory.
+    ///
+    /// # Returns
+    /// - `Result<Self>`: Returns the constructed `PathType` on success, or an error
+    ///   if the path does not exist or is not accessible.
+    ///
+    /// # Notes
+    /// - This function does not create the path on the filesystem; it merely constructs
+    ///   a `PathType` based on the existing path's properties.
     fn from_path(path: &Path) -> Result<Self> {
         if path.is_file() {
             Ok(PathType::File(path.to_path_buf()))
         } else if path.is_dir() {
             Ok(PathType::Directory(path.to_path_buf()))
         } else {
-            Err(anyhow!("Path does not exist or is not accessible: {}", path.to_string_lossy()))
+            Err(anyhow!(
+                "Path does not exist or is not accessible: {}",
+                path.to_string_lossy()
+            ))
         }
     }
-    /// Checks the path and finds the audio file.
-    /// - If it's a file, it checks that the extension is one of the supported audio extensions.
-    /// - If it's a directory, it searches for a file with a supported audio extension.
+
+    /// Discovers and returns the path of a supported audio file.
+    ///
+    /// This function identifies and validates audio files based on their extensions.
+    ///
+    /// # Parameters
+    /// - `self`: The current path to evaluate for an audio file or directory.
+    ///
+    /// # Returns
+    /// - `Result<String>`: The path to a supported audio file on success, or an error if no valid audio file is found.
+    ///
+    /// # Notes
+    /// - If the input is a file, it checks if the file extension matches supported audio types.
+    /// - If the input is a directory, it searches for the first supported audio file within the directory.
+    /// - Returns an error if the input path does not resolve to a valid audio file or directory.
     fn find_audio(self) -> Result<String> {
         match self {
             PathType::File(path) => {
@@ -279,16 +296,30 @@ impl PathType {
                         return Ok(audio_path);
                     }
                 }
-                debug!("Input path is a file but not a supported audio file: {}", path.to_string_lossy());
-                Err(anyhow!("The specified file is not a supported audio file: {}", path.to_string_lossy()))
-            },
+                debug!(
+                    "Input path is a file but not a supported audio file: {}",
+                    path.to_string_lossy()
+                );
+                Err(anyhow!(
+                    "The specified file is not a supported audio file: {}",
+                    path.to_string_lossy()
+                ))
+            }
             PathType::Directory(path) => {
-                debug!("Searching for audio file in directory: {}", path.to_string_lossy());
+                debug!(
+                    "Searching for audio file in directory: {}",
+                    path.to_string_lossy()
+                );
                 let audio_entry = fs::read_dir(&path)
-                    .context(format!("Failed to read directory: {}", path.to_string_lossy()))?
+                    .context(format!(
+                        "Failed to read directory: {}",
+                        path.to_string_lossy()
+                    ))?
                     .filter_map(Result::ok)
                     .find(|entry| {
-                        entry.path().extension()
+                        entry
+                            .path()
+                            .extension()
                             .and_then(|ext| ext.to_str())
                             .map_or(false, |ext| AUDIO_EXTENSIONS.contains(&ext))
                     });
@@ -298,15 +329,30 @@ impl PathType {
                     debug!("Found audio file: {}", audio_path);
                     Ok(audio_path)
                 } else {
-                    debug!("No audio file found in directory: {}", path.to_string_lossy());
-                    Err(anyhow!("No supported audio file found in directory: {}", path.to_string_lossy()))
+                    debug!(
+                        "No audio file found in directory: {}",
+                        path.to_string_lossy()
+                    );
+                    Err(anyhow!(
+                        "No supported audio file found in directory: {}",
+                        path.to_string_lossy()
+                    ))
                 }
-            },
+            }
         }
     }
 }
 
-/// Finds an audio file by converting the input path to a `PathType` and calling its method.
+/// Finds an audio file within a given directory or path.
+///
+/// This function searches for an audio file either in the specified directory or
+/// the provided file path.
+///
+/// # Parameters
+/// - `path_or_dir`: A string representing the directory or file path to search for the audio file.
+///
+/// # Returns
+/// - `Result<String>`: A `Result` containing the path to the found audio file as a `String` on success, or an error on failure.
 fn find_audio_file(path_or_dir: &str) -> Result<String> {
     let path = Path::new(path_or_dir);
     let path_type = PathType::from_path(path)?;

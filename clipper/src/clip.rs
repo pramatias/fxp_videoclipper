@@ -14,6 +14,26 @@ use std::sync::{
 };
 use std::{fs, thread, time::Duration};
 
+/// Creates a video from image frames without audio using ffmpeg.
+///
+/// This function takes a directory of image frames, processes them into a video
+/// at the specified FPS, and saves the result to a temporary directory. It
+/// includes progress tracking and supports cancellation.
+///
+/// # Parameters
+/// - `input_dir`: Directory containing the image frames to process.
+/// - `fps`: Frame rate for the output video.
+/// - `tmp_dir`: Temporary directory to store the output video.
+/// - `output_path`: Desired output filename for the video.
+/// - `running`: Flag to check if the process should continue running.
+///
+/// # Returns
+/// - `PathBuf`: Path to the created video file.
+///
+/// # Notes
+/// - The function assumes image frames follow a zero-padded numbering format.
+/// - Supports cancellation via the `running` flag.
+/// - The output filename will have a `_no_audio` suffix.
 pub fn create_video_without_audio(
     input_dir: &Path,
     fps: u32,
@@ -111,6 +131,24 @@ pub fn create_video_without_audio(
     output_file
 }
 
+/// Merges a video file with an audio file using FFmpeg.
+///
+/// This function combines the video and audio streams into a single output file.
+/// It uses FFmpeg under the hood to ensure proper encoding and formatting.
+///
+/// # Parameters
+/// - `video_path`: The path to the video file to process.
+/// - `mp3_path`: The path to the audio file to merge.
+/// - `running`: A flag indicating whether the operation should continue.
+///
+/// # Returns
+/// - `PathBuf`: The path to the merged output file.
+///
+/// # Notes
+/// - The output file is placed in the same directory as the video file, named with "_videoclipped" appended.
+/// - If an output file already exists at the target path, it will be deleted before creating a new one.
+/// - FFmpeg is used with standard settings for video copying and audio re-encoding.
+/// - The process can be interrupted by setting the `running` flag.
 pub fn merge_video_audio(
     video_path: &PathBuf,
     mp3_path: &PathBuf,
@@ -200,16 +238,28 @@ pub fn merge_video_audio(
         }
     }
 
-    log::debug!("Merged audio and video saved as {:?}", output_path);
+    debug!("Merged audio and video saved as {:?}", output_path);
 
     output_path
 }
 
-/// Trims a merged video using ffmpeg.
+/// Trims a merged video using ffmpeg to a specified duration.
 ///
-/// This function uses `get_tmp_output_path` to ensure the output file ends with `.mp4`.
-/// After ffmpeg creates the trimmed file, if a temporary filename was used,
-/// it is renamed back to the original output filename using `rename_output_file_if_needed`.
+/// This function executes an ffmpeg command to trim a video to the specified duration.
+/// It handles interruptions through a running flag and ensures proper file management.
+///
+/// # Parameters
+/// - `video_path`: Path to the input video file.
+/// - `duration_ms`: Desired duration of the trimmed video in milliseconds.
+/// - `output_path`: Path where the trimmed video will be saved.
+/// - `running`: Flag to control the execution state.
+///
+/// # Returns
+/// - `Result<PathBuf>`: Path to the trimmed video file on success.
+///
+/// # Notes
+/// - The function uses a temporary file to ensure proper formatting.
+/// - Interrupts the process if the `running` flag is set to false.
 pub fn trim_merged_video(
     video_path: std::path::PathBuf,
     duration_ms: u64,
@@ -291,9 +341,18 @@ pub fn trim_merged_video(
     Ok(original_output)
 }
 
-/// Returns an output path that ends with `.mp4`. It is needed for ffmpeg.
-/// If `output_path` does not already have a `.mp4` extension (case-insensitive),
-/// a new `PathBuf` with the `.mp4` extension is returned. Otherwise, the original path is cloned.
+/// Ensures the output path ends with .mp4 extension.
+///
+/// This function validates and adjusts the output path to ensure it has a .mp4 extension.
+///
+/// # Parameters
+/// - `output_path`: The input path to be validated and potentially modified.
+///
+/// # Returns
+/// - `PathBuf`: The normalized path with a .mp4 extension.
+///
+/// # Notes
+/// - If the original path already has a .mp4 extension, it is returned unchanged.
 fn get_tmp_output_path(output_path: &Path) -> PathBuf {
     if output_path
         .extension()
@@ -308,8 +367,20 @@ fn get_tmp_output_path(output_path: &Path) -> PathBuf {
     }
 }
 
-/// Renames the file from `tmp_output` to `original_output` if they differ.
-/// If no renaming is needed (paths are identical), this function does nothing.
+/// Renames a temporary output file to its original name if necessary.
+///
+/// This function checks if the temporary output path differs from the original
+/// output path, and if so, renames the file accordingly.
+///
+/// # Parameters
+/// - `tmp_output`: The temporary output file path.
+/// - `original_output`: The original output file path.
+///
+/// # Returns
+/// - `Result<()>`: Indicates success or failure of the rename operation.
+///
+/// # Notes
+/// - No action is taken if `tmp_output` and `original_output` are the same.
 fn rename_output_file_if_needed(tmp_output: &Path, original_output: &Path) -> Result<()> {
     if tmp_output != original_output {
         fs::rename(&tmp_output, &original_output).with_context(|| {

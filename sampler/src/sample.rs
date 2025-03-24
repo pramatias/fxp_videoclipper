@@ -13,6 +13,24 @@ use std::sync::{
 use std::thread;
 use std::time::Duration;
 
+/// Extracts a single frame from the middle of a video.
+///
+/// This function captures a frame at the midpoint of the video's duration.
+/// If the process is interrupted, it returns an error.
+///
+/// # Parameters
+/// - `video`: Path to the video file.
+/// - `duration_ms`: Video duration in milliseconds.
+/// - `output_path`: Destination path for the extracted frame.
+/// - `running`: Flag indicating whether the operation should continue.
+///
+/// # Returns
+/// - `Result<()>`: Success or failure of the frame extraction.
+///
+/// # Notes
+/// - The function is interruptible and checks the `running` flag at multiple stages.
+/// - If `output_path` is a file, the function creates a temporary file and renames it afterward.
+/// - Supports both file and directory output paths, formatting filenames appropriately.
 pub fn extract_single_frame<P: AsRef<Path>>(
     video: P,
     duration_ms: u64,
@@ -107,6 +125,27 @@ pub fn extract_single_frame<P: AsRef<Path>>(
     Ok(())
 }
 
+/// Extracts multiple frames from a video at specified intervals.
+///
+/// This function captures a series of frames from a video file and saves them as images.
+/// The frames are extracted at evenly spaced intervals throughout the video's duration.
+///
+/// # Parameters
+/// - `video`: Path to the video file to extract frames from.
+/// - `duration_ms`: Total duration of the video in milliseconds.
+/// - `num_frames`: Number of frames to extract from the video.
+/// - `output_dir`: Directory path where the extracted frames will be saved.
+/// - `running`: Flag indicating whether the extraction process should continue.
+///
+/// # Returns
+/// - `Result<()>`: Returns `Ok(())` upon success. If an error occurs, returns an
+///   `Err` containing a descriptive error message.
+///
+/// # Notes
+/// - Frames are extracted at intervals calculated by dividing the video duration
+///   into `(num_frames + 1)` equal parts.
+/// - The output directory will be created if it does not already exist.
+/// - The process can be interrupted by setting the `running` flag to false.
 pub fn extract_multiple_frames(
     video: &Path,
     duration_ms: u64,

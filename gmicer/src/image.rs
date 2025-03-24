@@ -15,9 +15,9 @@ use std::sync::{
 /// GMIC operations on the provided images.
 ///
 /// # Parameters
-/// - `output_directory`: Path to the directory where processed images will be saved.
-/// - `gic_args`: Command-line arguments for GMIC processing.
 /// - `images`: Collection of images to process, mapped by unique identifiers.
+/// - `gmic_args`: Command-line arguments for GMIC processing.
+/// - `output_directory`: Path to the directory where processed images will be saved.
 ///
 /// # Returns
 /// - `Result<()>`: Indicates successful execution or returns an error if any issues occur.

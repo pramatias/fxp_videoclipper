@@ -29,7 +29,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             audio_path: None,
-            fps: 30,                    // Adjust default FPS if needed
+            fps: 60,                    // Adjust default FPS if needed
             pixel_upper_limit: 480,     // Adjust default pixel limit if needed
             sampling_number: 10,        // Adjust default sample count if needed
             opacity: 0.5,               // Default overall opacity
@@ -40,10 +40,24 @@ impl Default for Config {
     }
 }
 
-/// Initializes and updates the application configuration by interacting with the user.
+/// Initializes and updates the application configuration by prompting the user for settings.
 ///
-/// This function loads existing configuration settings, prompts the user to update each setting,
-/// including the overall opacity and additional opacity fields, and then saves the updated configuration.
+/// This function loads the existing configuration, prompts the user to update various parameters,
+/// and saves the updated configuration.
+///
+/// # Parameters
+/// - None
+///
+/// # Returns
+/// - `Result<()>`: Indicates whether the configuration was successfully initialized and saved.
+///
+/// # Notes
+/// - Prompts the user to update the AUDIO path, FPS, pixel upper limit, sampling number,
+///   opacity, and multiple opacity values.
+/// - Handles user input gracefully, allowing empty values for the AUDIO path and validating
+///   numerical inputs where necessary.
+/// - Saves the updated configuration to disk upon successful user interaction.
+/// - Logs debug information throughout the process.
 pub fn initialize_configuration() -> Result<()> {
     debug!("Initializing configuration process started.");
 

@@ -9,7 +9,33 @@ use modes::Modes;
 use crate::filename_parts::FilenameParts;
 use crate::filename_parts::ImageMappingError as OtherImageMappingError;
 
+pub trait FileOperations {
+    fn load_files(
+        &self,
+        images: &[PathBuf],
+    ) -> Result<BTreeMap<u32, PathBuf>, OtherImageMappingError>;
+}
+
 impl FileOperations for Modes {
+    /// Loads and processes image files based on the specified mode.
+    ///
+    /// This function validates and processes a collection of image files. It ensures
+    /// all filenames follow a consistent structure and format.
+    ///
+    /// # Parameters
+    /// - `images`: A slice of `PathBuf` objects representing image files to process.
+    /// - `self`: Reference to the current instance with mode information.
+    ///
+    /// # Returns
+    /// - `Result<BTreeMap<u32, PathBuf>, OtherImageMappingError>`:
+    ///   - `Ok(BTreeMap<u32, PathBuf>)`: Successfully loaded and mapped images.
+    ///   - `Err(OtherImageMappingError)`: If an error occurs during processing.
+    ///
+    /// # Notes
+    /// - Supports modes: `Merger`, `Clutter`, `Clipper`, `Gmicer`.
+    /// - Uses the first image's prefix as a common prefix for all images.
+    /// - Validates filename structure and ensures consistent formatting.
+    /// - Returns an error if the mode is `Exporter` or `Sampler`.
     fn load_files(
         &self,
         images: &[PathBuf],
@@ -73,13 +99,6 @@ impl FileOperations for Modes {
             }
         }
     }
-}
-
-pub trait FileOperations {
-    fn load_files(
-        &self,
-        images: &[PathBuf],
-    ) -> Result<BTreeMap<u32, PathBuf>, OtherImageMappingError>;
 }
 
 /// Maps image files to a structured format based on extracted numbers.
@@ -151,6 +170,19 @@ fn map_files_by_number(
     Ok(map)
 }
 
+/// Extracts a number from a filename if it matches the expected pattern.
+///
+/// This function attempts to find and parse a number in the given filename.
+///
+/// # Parameters
+/// - `filename`: The input filename string to extract the number from.
+///
+/// # Returns
+/// - `Option<u32>`: Contains the extracted number if successful, otherwise `None`.
+///
+/// # Notes
+/// - The function looks for digits preceded by an underscore (`_`).
+/// - Only the first occurrence of such a pattern is considered.
 fn extract_correct_number(filename: &str) -> Option<u32> {
     debug!("Attempting to extract number from filename: {}", filename);
 

@@ -15,9 +15,21 @@ pub struct FilenameParts {
 }
 
 impl FilenameParts {
-    /// Checks the `suffix` for an underscore after the first digit.
-    /// If such an underscore exists, it removes the underscore and all subsequent characters,
-    /// and marks the struct as modified.
+    /// Executes the image exporting process based on the provided options and configuration.
+    ///
+    /// This function handles the core logic of exporting images from a video source,
+    /// including resolving video paths, output settings, and processing parameters.
+    ///
+    /// # Parameters
+    /// - `options`: An `ExporterOptions` instance containing exporter-specific settings.
+    /// - `config`: A `Config` instance providing global configuration settings.
+    ///
+    /// # Returns
+    /// - `Result<()>`: Indicates success or failure of the export operation.
+    ///
+    /// # Notes
+    /// - Manages input/output paths, video duration, FPS calculation, and pixel limits.
+    /// - Creates and executes the exporter instance with calculated parameters.
     pub fn check_suffix(&mut self) -> Result<(), ImageMappingError> {
         // First, check for an underscore after the first digit.
         if let Some(first_digit_index) = self.suffix.chars().position(|c| c.is_ascii_digit()) {
@@ -75,8 +87,22 @@ impl FilenameParts {
         Ok(())
     }
 
-    /// Checks if the provided new prefix is different from the current one (as extracted from the filename).
-    /// If they differ, the function only updates the struct’s prefix field and marks it as modified.
+    /// Updates the image's prefix if it differs from the current prefix.
+    ///
+    /// Compares the current prefix with the provided `new_prefix` and updates
+    /// the prefix field if they differ. Sets the `modified` flag to indicate
+    /// a change.
+    ///
+    /// # Parameters
+    /// - `new_prefix`: The target prefix to compare and potentially update to.
+    ///
+    /// # Returns
+    /// - `Result<()>`: Returns `Ok(())` on success, or an `ImageMappingError` if
+    ///   extraction fails.
+    ///
+    /// # Notes
+    /// - The function only modifies the prefix field if the provided `new_prefix`
+    ///   differs from the current one.
     pub fn check_prefix(&mut self, new_prefix: &str) -> Result<(), ImageMappingError> {
         // Extract the current prefix from the file's path.
         let current_prefix = extract_prefix(&self.path)?;
@@ -93,8 +119,21 @@ impl FilenameParts {
         self.modified
     }
 
-    /// If the filename has been marked as modified, this function constructs a new filename using
-    /// `construct_new_filename` and renames the file accordingly. After renaming, the modified flag is reset.
+    /// Saves the file by renaming it if the filename has been modified.
+    ///
+    /// This function checks if the filename has been modified and renames the file
+    /// accordingly. If no modifications are detected, the function will not perform
+    /// any actions.
+    ///
+    /// # Parameters
+    /// - `self`: Reference to the struct containing the file information.
+    ///
+    /// # Returns
+    /// - `Result<()>`: Indicates success or failure of the save operation.
+    ///
+    /// # Notes
+    /// - The file is only renamed if there are modifications.
+    /// - The `modified` flag is reset to `false` after a successful save.
     pub fn save_file(&mut self) -> Result<(), ImageMappingError> {
         if self.modified {
             debug!("Filename is marked as modified. Proceeding to rename the file.");
@@ -129,8 +168,19 @@ impl FilenameParts {
         Ok(())
     }
 
-    /// Constructs the full filename using the given prefix, the existing suffix,
-    /// and file extension.
+    /// Constructs a new filename by combining a prefix, suffix, and extension.
+    ///
+    /// This function creates a formatted filename string using the provided prefix,
+    /// the stored suffix, and file extension.
+    ///
+    /// # Parameters
+    /// - `new_prefix`: The initial segment of the new filename.
+    ///
+    /// # Returns
+    /// - `String`: The formatted filename in the format `prefix_suffix.extension`.
+    ///
+    /// # Notes
+    /// - The filename is structured as: `<prefix>_<suffix>.<extension>`
     fn construct_new_filename(&self, new_prefix: &str) -> String {
         debug!("Constructing new filename with prefix: {}", new_prefix);
         debug!("Current suffix: {}", self.suffix);
@@ -144,10 +194,22 @@ impl FilenameParts {
 }
 
 impl FilenameParts {
-    /// Constructs a new `FilenameParts` by splitting the filename on the first underscore
-    /// and extracting the file extension.
-    /// Returns an error if the filename is not valid UTF-8, if no underscore is found,
-    /// or if the file extension is missing or not valid UTF-8.
+    /// Constructs a new `FilenameParts` by extracting and validating the filename components.
+    ///
+    /// This function parses the filename into prefix and suffix based on the first underscore,
+    /// and ensures the file extension is valid.
+    ///
+    /// # Parameters
+    /// - `file`: A `Path` reference to the file to be parsed.
+    ///
+    /// # Returns
+    /// - `Result<Self>`: A `FilenameParts` instance if successful, or an `ImageMappingError` on failure.
+    ///
+    /// # Notes
+    /// - Returns an error if:
+    ///   - The filename is not valid UTF-8.
+    ///   - The filename does not contain an underscore.
+    ///   - The file extension is missing or not valid UTF-8.
     pub fn new(file: &Path) -> Result<Self, ImageMappingError> {
         debug!("Attempting to create FilenameParts for file: {:?}", file);
 
@@ -224,8 +286,19 @@ pub enum ImageMappingError {
     FileNotFound(String),
 }
 
-/// Extracts the prefix from the image filename.
-/// The prefix is defined as everything in the file's stem before the first underscore ('_').
+/// Extracts the prefix from a filename before the first underscore.
+///
+/// This function takes a file path and extracts the portion of the filename before the first underscore.
+/// If no underscore is present, the entire filename is returned.
+///
+/// # Parameters
+/// - `path`: A reference to a `PathBuf` representing the file path to process.
+///
+/// # Returns
+/// - `Result<String, ImageMappingError>`: The extracted prefix as a `String`, or an error if extraction fails.
+///
+/// # Notes
+/// - If the filename does not contain an underscore, the entire filename is used as the prefix.
 fn extract_prefix(path: &PathBuf) -> Result<String, ImageMappingError> {
     debug!("Attempting to extract prefix from path: {:?}", path);
 

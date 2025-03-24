@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
+use console::style;
 use log::{debug, error};
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use std::collections::HashSet;
-use console::style;
 
 use modes::Modes;
 use output::ModeOutput;
@@ -23,6 +23,22 @@ pub struct Gmicer {
 }
 
 impl Gmicer {
+    /// Creates a new instance of `Gmicer` for processing images using GMIC.
+    ///
+    /// This function initializes the necessary components for image processing,
+    /// including input and output directories, and GMIC arguments.
+    ///
+    /// # Parameters
+    /// - `input_directory`: The path to the directory containing input images.
+    /// - `output_directory`: Optional path for output images; defaults to input directory if not provided.
+    /// - `gmic_args`: Vector of GMIC arguments to apply during processing.
+    ///
+    /// # Returns
+    /// - `Result<Self>`: Returns a new `Gmicer` instance on success, or an error if initialization fails.
+    ///
+    /// # Notes
+    /// - If `output_directory` is not provided, output files will be placed in the input directory.
+    /// - The function validates the input directory and GMIC arguments before initializing.
     pub fn new(
         input_directory: &str,
         output_directory: Option<&str>,
@@ -82,6 +98,22 @@ impl Gmicer {
     }
 }
 
+/// Sets up and processes G'MIC image files from a specified directory.
+///
+/// This function reads image files from the input directory, processes them,
+/// and returns a mapped collection of the images along with their count.
+///
+/// # Parameters
+/// - `input_directory`: The file path to the directory containing G'MIC images to process.
+///
+/// # Returns
+/// - `Result<(BTreeMap<u32, PathBuf>, usize)>`: A tuple containing:
+///   - A `BTreeMap` mapping image IDs to their file paths.
+///   - The total number of images processed.
+///
+/// # Notes
+/// - The function reads all image files from the specified directory.
+/// - Uses `FileOperations` for processing images in "Gmicer" mode.
 fn setup_gmic_processing(input_directory: &str) -> Result<(BTreeMap<u32, PathBuf>, usize)> {
     debug!("Starting setup_gmic_processing function");
 
@@ -106,20 +138,21 @@ fn setup_gmic_processing(input_directory: &str) -> Result<(BTreeMap<u32, PathBuf
 }
 
 impl Gmicer {
-    /// Processes images using a GMIC command.
+    /// Processes images using GMIC arguments and handles output warnings.
     ///
-    /// This function handles image processing by executing a GMIC command on the specified images.
+    /// This function manages the image processing pipeline, including logging,
+    /// image handling, and output warnings.
     ///
     /// # Parameters
-    /// - `self`: Contains configuration like input directory, GMIC arguments, and output directory.
+    /// - `&self`: Reference to the current instance containing processing data
     ///
     /// # Returns
-    /// - `Result<()>`: Indicates whether the image processing was successful.
+    /// - `Result<()>`: Indicates success or failure of the image processing operation
     ///
     /// # Notes
-    /// - Logs processing details at the start of the operation.
-    /// - Checks and handles cases where no images are found.
-    /// - Manages temporary directories based on the build mode.
+    /// - Logs debug and error messages for visibility into processing flow
+    /// - Processes images with GMIC arguments and handles output directory warnings
+    /// - Returns early with success if no images are found
     pub fn gmic_images(&self) -> Result<()> {
         debug!(
             "Processing images from '{}' with GMIC arguments: {:?}",
@@ -135,17 +168,31 @@ impl Gmicer {
         image_processing(&self.images, &self.gmic_args, &self.output_path)
             .context("Failed to process images")?;
 
-warn_on_multiple_image_output(&self.output_path)
-    .context("Failed to warn on multiple image output")?;
+        warn_on_multiple_image_output(&self.output_path)
+            .context("Failed to warn on multiple image output")?;
 
         Ok(())
     }
 }
 
-/// Collects unique numbers from filenames in the given output directory.
-/// The function looks for filenames with at least two underscores and extracts the substring
-/// between the second underscore and the file extension if it contains only digits.
-/// Returns a sorted vector of unique number strings.
+/// Warns about multiple image output files with the same numeric identifier.
+///
+/// This function checks for image files in the specified directory that follow a specific
+/// naming pattern. It identifies files with multiple outputs that share the same numeric
+/// segment and issues a warning.
+///
+/// # Parameters
+/// - `output_path`: The directory path to check for image files.
+///
+/// # Returns
+/// - `Result<()>`: Indicates whether the operation completed successfully.
+///
+/// # Notes
+/// - The function scans filenames for a format containing numeric identifiers between
+///   the second underscore and the file extension.
+/// - It collects unique numeric identifiers and warns if multiple files share the
+///   same identifier, indicating potential conflicts.
+/// - Files that do not match the expected pattern are ignored.
 fn warn_on_multiple_image_output(output_path: &Path) -> Result<()> {
     let mut unique_numbers = HashSet::new();
 
@@ -189,7 +236,15 @@ fn warn_on_multiple_image_output(output_path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Logs a warning message in yellow displaying the provided unique numbers.
+/// Displays a warning message listing unique numbers found in output files.
+///
+/// This function prints a styled message to the console when unique numbers are detected.
+///
+/// # Parameters
+/// - `numbers`: A slice of `String` containing the unique numbers to display.
+///
+/// # Notes
+/// - If the `numbers` slice is empty, no message will be displayed.
 pub fn display_warn_message(numbers: &[String]) {
     if !numbers.is_empty() {
         println!(

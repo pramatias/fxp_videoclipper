@@ -1,8 +1,5 @@
 use anyhow::{anyhow, Context, Result};
 use log::debug;
-use rand::distributions::Alphanumeric;
-use rand::thread_rng;
-use rand::Rng;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
@@ -11,8 +8,13 @@ use std::path::{Path, PathBuf};
 pub use modes::Modes;
 
 pub trait ModeOutput {
-    type Input;
-    fn create_output(&self, input: Self::Input) -> Result<PathBuf>;
+    type Parameters;
+    fn create_output(&self, input: Self::Parameters) -> Result<PathBuf>;
+}
+
+enum OutputType {
+    File,
+    Directory,
 }
 
 // Enum to hold all the possible outputs.
@@ -41,10 +43,10 @@ impl From<Modes> for Output {
 
 pub struct ExporterOutput;
 impl ModeOutput for ExporterOutput {
-    // Input is a tuple of the input path and an optional explicit output directory string.
-    type Input = (PathBuf, Option<String>);
+    // Parameters is a tuple of the input path and an optional explicit output directory string.
+    type Parameters = (PathBuf, Option<String>);
 
-    fn create_output(&self, input: Self::Input) -> Result<PathBuf> {
+    fn create_output(&self, input: Self::Parameters) -> Result<PathBuf> {
         let (input_path, output_directory) = input;
         match output_directory.as_deref() {
             Some(dir) => create_explicit_output_directory(dir),
@@ -55,12 +57,12 @@ impl ModeOutput for ExporterOutput {
 
 pub struct SamplerOutput;
 impl ModeOutput for SamplerOutput {
-    // Extend the Input tuple to include sample_number (e.g., u32)
-    type Input = (PathBuf, Option<String>, usize);
+    // Extend the Parameters tuple to include sample_number (e.g., u32)
+    type Parameters = (PathBuf, Option<String>, usize);
 
     /// Creates the output directory either explicitly (if provided) or auto-generates one.
     /// The auto-generated directory will now take `sample_number` into account.
-    fn create_output(&self, input: Self::Input) -> Result<PathBuf> {
+    fn create_output(&self, input: Self::Parameters) -> Result<PathBuf> {
         // Destructure the tuple into `input_path`, `output_directory`, and `sample_number`
         let (input_path, output_directory, sample_number) = input;
 
@@ -73,9 +75,23 @@ impl ModeOutput for SamplerOutput {
 
 pub struct ClutterOutput;
 impl ModeOutput for ClutterOutput {
-    // Adjusted Input to match the new pattern: (PathBuf, Option<String>)
-    type Input = (PathBuf, Option<String>);
-    fn create_output(&self, input: Self::Input) -> Result<PathBuf> {
+    type Parameters = (PathBuf, Option<String>);
+
+    /// Creates an output directory for clutter output, either explicitly or automatically.
+    ///
+    /// This function handles the creation of the output directory based on the provided parameters.
+    ///
+    /// # Parameters
+    /// - `input_path`: The source path used for generating the output directory if no explicit directory is provided.
+    /// - `output_directory`: An optional directory path to use for output; if `None`, the directory is generated automatically from `input_path`.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: The path to the created or specified output directory.
+    ///
+    /// # Notes
+    /// - If an explicit output directory is provided, it is used directly.
+    /// - If no output directory is provided, one is automatically generated from the input path.
+    fn create_output(&self, input: Self::Parameters) -> Result<PathBuf> {
         let (input_path, output_directory) = input;
         match output_directory.as_deref() {
             Some(dir) => create_explicit_output_directory(dir),
@@ -87,8 +103,25 @@ impl ModeOutput for ClutterOutput {
 pub struct MergerOutput;
 impl ModeOutput for MergerOutput {
     // The input is a tuple: (input_path, output_directory, merge_value)
-    type Input = (PathBuf, Option<String>, f32);
-    fn create_output(&self, input: Self::Input) -> Result<PathBuf> {
+    type Parameters = (PathBuf, Option<String>, f32);
+
+    /// Creates output path based on input parameters.
+    ///
+    /// This method determines the appropriate output path by checking if an explicit output directory is provided.
+    /// If not, it generates the directory automatically using the input path and merge value.
+    ///
+    /// # Parameters
+    /// - `input_path`: The path to the input file.
+    /// - `output_directory`: An optional directory to use for output.
+    /// - `merge_value`: A floating-point value used in auto-generating the output directory.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: The resulting output path, or an error if it fails.
+    ///
+    /// # Notes
+    /// - If `output_directory` is provided, it is used explicitly.
+    /// - If `output_directory` is not provided, the directory is auto-generated based on `input_path` and `merge_value`.
+    fn create_output(&self, input: Self::Parameters) -> Result<PathBuf> {
         let (input_path, output_directory, merge_value) = input;
         match output_directory.as_deref() {
             Some(dir) => create_explicit_output_directory(&dir),
@@ -99,8 +132,27 @@ impl ModeOutput for MergerOutput {
 
 pub struct GmicerOutput;
 impl ModeOutput for GmicerOutput {
-    type Input = (PathBuf, Vec<String>, Option<String>);
-    fn create_output(&self, input: Self::Input) -> Result<PathBuf> {
+    type Parameters = (PathBuf, Vec<String>, Option<String>);
+
+    /// Creates an output path for GMICer based on input parameters.
+    ///
+    /// This function determines the appropriate output path by evaluating the provided
+    /// parameters, which include the input file path, GMIC arguments, and an optional output
+    /// directory. If an output directory is specified, it is used directly; otherwise,
+    /// the function generates a directory name automatically based on the input file path
+    /// and GMIC arguments.
+    ///
+    /// # Parameters
+    /// - `input_path`: Path to the input file.
+    /// - `gmic_args`: Vector of arguments for GMIC.
+    /// - `output_directory`: Optional output directory.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: The determined output path, or an error if creation fails.
+    ///
+    /// # Notes
+    /// - If `output_directory` is `None`, it is automatically generated from `input_path` and `gmic_args`.
+    fn create_output(&self, input: Self::Parameters) -> Result<PathBuf> {
         let (input_path, gmic_args, output_directory) = input;
         match output_directory.as_deref() {
             Some(dir) => create_explicit_output_directory(dir),
@@ -111,23 +163,51 @@ impl ModeOutput for GmicerOutput {
 
 pub struct ClipperOutput;
 impl ModeOutput for ClipperOutput {
-    // Input: (input_path, optional custom directory as PathBuf, optional string parameter)
-    type Input = (PathBuf, Option<PathBuf>, Option<String>);
+    // Parameters: (input_path, optional custom directory as PathBuf, optional string parameter)
+    type Parameters = (PathBuf, Option<PathBuf>, Option<String>);
 
-    fn create_output(&self, input: Self::Input) -> Result<PathBuf> {
-        let (input_path, maybe_path, maybe_explicit) = input;
-        match maybe_explicit.as_deref() {
+    /// Creates output files based on specified parameters.
+    ///
+    /// This function handles both explicit output directory specification and automatic generation.
+    ///
+    /// # Parameters
+    /// - `input_path`: The input file path as a `PathBuf`.
+    /// - `mp3_path`: An optional path to an MP3 file.
+    /// - `output_path`: An optional output directory as a `String`.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: The path to the created output file on success.
+    ///
+    /// # Notes
+    /// - If an explicit `output_path` is provided, the function will create the output file in that directory.
+    /// - If no `output_path` is provided, the function will auto-generate the output directory based on the `input_path` and `mp3_path`.
+    fn create_output(&self, input: Self::Parameters) -> Result<PathBuf> {
+        let (input_path, mp3_path, output_path) = input;
+        match output_path.as_deref() {
             // If an explicit output directory is provided, use it.
-            Some(explicit) => self.create_explicit_output_file(explicit),
+            Some(output_path) => {
+                self.create_explicit_output_file(output_path, mp3_path, &input_path)
+            }
             // Otherwise, auto-generate the output directory, passing the optional mp3_path.
-            None => self.output_file_auto_generated(&input_path, maybe_path.as_deref()),
+            None => self.output_file_auto_generated(&input_path, mp3_path.as_deref()),
         }
     }
 }
 
-/// Enum representing the output type.
 impl GmicerOutput {
     /// Automatically generates an output directory name based on the input path and GMIC arguments.
+    ///
+    /// # Parameters
+    /// - `input_path`: The path to the input file.
+    /// - `gmic_args`: The arguments provided to GMIC.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: The path to the generated output directory, or an error if creation fails.
+    ///
+    /// # Notes
+    /// - The directory name is created by combining the input filename and the first GMIC argument.
+    /// - If the input filename is unavailable, it defaults to "input".
+    /// - If the directory already exists, a unique suffix is appended to ensure uniqueness.
     fn output_directory_auto_generated(
         &self,
         input_path: &Path,
@@ -159,13 +239,21 @@ impl GmicerOutput {
         Ok(output_path)
     }
 }
-enum OutputType {
-    File,
-    Directory,
-}
 impl MergerOutput {
-    /// Automatically generates an output directory by appending a random suffix.
-    /// The base directory name is built using the input directory name with a `_merged_{merge_value}` suffix.
+    /// Automatically generates a unique output directory name by appending a suffix.
+    /// Creates a directory in the parent of the given input path with a base name
+    /// formatted as `input_filename_merged_{merge_value}`.
+    ///
+    /// # Parameters
+    /// - `input_path`: The input file path used to derive the output directory name.
+    /// - `merge_value`: A float value incorporated into the directory name.
+    ///
+    /// # Returns
+    /// - `PathBuf`: The path to the newly created directory.
+    ///
+    /// # Notes
+    /// - The directory is created in the parent directory of `input_path`.
+    /// - Ensures uniqueness by appending a random suffix if necessary.
     fn output_directory_auto_generated(
         &self,
         input_path: &Path,
@@ -186,31 +274,54 @@ impl MergerOutput {
     }
 }
 impl SamplerOutput {
-    /// Auto-generates an output directory based on the input path.
+    /// Auto-generates an output directory based on the input path, ensuring a unique name.
+    ///
+    /// This function creates an output directory by first attempting to use a base name.
+    /// If that directory exists, it appends a numerical suffix to find an available name.
+    ///
+    /// # Parameters
+    /// - `input_path`: The path used as the foundation for the output directory.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: The path to the created directory, or an error if creation fails.
+    ///
+    /// # Notes
+    /// - The base directory name is "sample_frames".
+    /// - If the base name is taken, it appends a counter (e.g., "sample_frames_1", "sample_frames_2").
     fn output_directory_auto_generated(&self, input_path: &Path) -> Result<PathBuf> {
         let base_directory_name = "sample_frames";
-        let candidate_path = input_path
-            .parent()
-            .unwrap_or_else(|| Path::new("."))
-            .join(base_directory_name);
+        debug!("Base directory name: {}", base_directory_name);
+
+        let parent = input_path.parent().unwrap_or_else(|| Path::new("."));
+        debug!("Parent directory: {:?}", parent);
+
+        let candidate_path = parent.join(base_directory_name);
+        debug!("Initial candidate path: {:?}", candidate_path);
 
         let output_path = if candidate_path.exists() {
+            debug!("Candidate path exists, looking for alternative");
+            let mut counter = 1;
             loop {
-                let candidate_name = generate_random_name(OsStr::new(base_directory_name));
-                let candidate_path = input_path
-                    .parent()
-                    .unwrap_or_else(|| Path::new("."))
-                    .join(candidate_name);
+                let candidate_name = format!("{}_{}", base_directory_name, counter);
+                let candidate_path = parent.join(&candidate_name);
+                debug!("Checking alternative path: {:?}", candidate_path);
+
                 if !candidate_path.exists() {
+                    debug!("Found available path: {:?}", candidate_path);
                     break candidate_path;
                 }
+                counter += 1;
             }
         } else {
+            debug!("Candidate path is available");
             candidate_path
         };
 
+        debug!("Creating directory at: {:?}", output_path);
         fs::create_dir_all(&output_path)
             .with_context(|| format!("Failed to create output directory {:?}", output_path))?;
+
+        debug!("Successfully created output directory: {:?}", output_path);
         Ok(output_path)
     }
 
@@ -295,7 +406,21 @@ impl SamplerOutput {
     }
 }
 impl ExporterOutput {
-    // This method auto-generates the output directory.
+    /// Auto-generates an output directory based on the input file's path.
+    ///
+    /// This method creates a uniquely named directory for output in the parent
+    /// directory of the input path, using the input filename without extension.
+    ///
+    /// # Parameters
+    /// - `input_path`: The path to the input file used to determine the output directory.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: The path to the created output directory.
+    ///
+    /// # Notes
+    /// - The directory name is formatted as `<input_name>_original_frames`.
+    /// - If the directory exists, a unique name is created by appending a number.
+    /// - The directory is created in the parent directory of `input_path`.
     fn output_directory_auto_generated(&self, input_path: &Path) -> Result<PathBuf> {
         let base_directory_name = format!(
             "{}_original_frames",
@@ -312,6 +437,20 @@ impl ExporterOutput {
     }
 }
 impl ClutterOutput {
+    /// Generates a unique output directory name based on the input file's name and location.
+    ///
+    /// This function constructs a directory name by appending `_clutted` to the input file's name.
+    /// If no file name is present, it defaults to `input_clutted`.
+    /// The directory is created in the same location as the input file.
+    ///
+    /// # Parameters
+    /// - `input_path`: The path to the input file used to generate the output directory name.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: The path to the generated directory, or an error if creation fails.
+    ///
+    /// # Notes
+    /// - If the directory already exists, a unique name is created by appending a numerical suffix.
     fn output_directory_auto_generated(&self, input_path: &Path) -> Result<PathBuf> {
         let base_directory_name = format!(
             "{}_clutted",
@@ -326,22 +465,111 @@ impl ClutterOutput {
     }
 }
 impl ClipperOutput {
-    /// Creates an output file using the explicitly provided path.
-    fn create_explicit_output_file(&self, output_file: &str) -> Result<PathBuf> {
-        debug!("Output file provided: {:?}", output_file);
-        let output_path = std::path::Path::new(output_file);
-        if output_path.exists() {
-            debug!("Output file exists, removing it: {:?}", output_path);
-            std::fs::remove_file(output_path)
-                .with_context(|| "Failed to remove existing output file")?;
+    /// Creates an explicit output file path, handling both file and directory cases.
+    ///
+    /// This function determines the appropriate output path based on whether the provided
+    /// path points to a file or directory. If the output path exists and is a file, it will
+    /// be removed before creating the new output file.
+    ///
+    /// # Parameters
+    /// - `output_file_or_dir`: The desired output path, which can be a file or directory.
+    /// - `mp3_path`: An optional MP3 file path used to derive the output filename.
+    /// - `input_dir`: The input directory path used as a fallback when `mp3_path` is not provided.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: The final output file path as a `PathBuf` on success.
+    ///
+    /// # Notes
+    /// - If `output_file_or_dir` is a directory and `mp3_path` is provided, the output filename
+    ///   will be derived from the MP3 file's stem with an `.mp4` extension.
+    /// - If `output_file_or_dir` is a directory and `mp3_path` is not provided, the output filename
+    ///   will be derived from the `input_dir`'s name with an `.mp4` extension.
+    /// - Existing files at the output path will be removed before creating the new file.
+    fn create_explicit_output_file(
+        &self,
+        output_file_or_dir: &str,
+        mp3_path: Option<PathBuf>,
+        input_dir: &Path,
+    ) -> Result<PathBuf> {
+        debug!("Output file provided: {:?}", output_file_or_dir);
+        let output_path = std::path::Path::new(output_file_or_dir);
+
+        // Determine the output type based on the existing file system entry.
+        let output_type = if output_path.exists() {
+            if output_path.is_dir() {
+                OutputType::Directory
+            } else {
+                OutputType::File
+            }
+        } else {
+            // Default to file if the path does not exist.
+            OutputType::File
+        };
+
+        // Compute the final output path.
+        let final_output_path = match output_type {
+            OutputType::File => output_path.to_path_buf(),
+            OutputType::Directory => {
+                if let Some(mp3) = mp3_path {
+                    // Extract the file stem (filename without extension) from the mp3 path.
+                    let stem = mp3
+                        .file_stem()
+                        .ok_or_else(|| anyhow!("MP3 path does not have a valid file stem"))?;
+                    // Create a new filename with .mp4 extension.
+                    let mut new_filename = std::ffi::OsString::from(stem);
+                    new_filename.push(".mp4");
+                    output_path.join(new_filename)
+                } else {
+                    // Use the input directory's filename.
+                    let input_dir_filename = input_dir.file_name().ok_or_else(|| {
+                        anyhow!("Input directory does not have a valid file name")
+                    })?;
+                    let mut new_filename = std::ffi::OsString::from(input_dir_filename);
+                    new_filename.push(".mp4");
+                    output_path.join(new_filename)
+                }
+            }
+        };
+
+        // If the final output path already exists and it's a file, remove it.
+        if final_output_path.exists() {
+            if final_output_path.is_file() {
+                debug!(
+                    "Output file exists as file, removing it: {:?}",
+                    final_output_path
+                );
+                std::fs::remove_file(&final_output_path)
+                    .with_context(|| "Failed to remove existing output file")?;
+            } else {
+                debug!(
+                    "Output path is a directory, not removing it: {:?}",
+                    final_output_path
+                );
+            }
         }
-        debug!("Creating output file: {:?}", output_path);
-        // Create the file to ensure it exists.
-        std::fs::File::create(output_path).with_context(|| "Failed to create output file")?;
-        // Return the output file's path as a PathBuf.
-        Ok(output_path.to_path_buf())
+
+        debug!("Creating output file: {:?}", final_output_path);
+        std::fs::File::create(&final_output_path)
+            .with_context(|| "Failed to create output file")?;
+
+        Ok(final_output_path)
     }
 
+    /// Generates an output file path based on the provided MP3 file or input directory.
+    ///
+    /// This function constructs the output file path by using either the MP3 file's parent
+    /// directory and file stem, or the input directory's details if no MP3 path is provided.
+    ///
+    /// # Parameters
+    /// - `input_dir`: The input directory path used as a fallback when no MP3 path is provided.
+    /// - `mp3_path`: An optional MP3 file path that determines the output directory and filename.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: The constructed output file path.
+    ///
+    /// # Notes
+    /// - If an MP3 path is provided, the function uses its parent directory and file stem.
+    /// - If no MP3 path is provided, the function uses the input directory's parent and name.
     fn output_file_auto_generated(
         &self,
         input_dir: &Path,
@@ -367,17 +595,23 @@ impl ClipperOutput {
         }
     }
 
-    /// Generates a random name based on the given base string by appending two random alphanumeric characters.
-    fn generate_random_name(&self, base: &OsStr) -> String {
-        let mut rng = rand::thread_rng();
-        let random_suffix: String = (0..2).map(|_| rng.sample(Alphanumeric) as char).collect();
-        format!("{}{}", base.to_string_lossy(), random_suffix)
-    }
-
-    /// Builds the output file path by combining the directory and stem.
+    /// Constructs an output file path with a unique name for an MP4 file.
     ///
-    /// If the initial candidate (with an "mp4" extension) exists, a random suffix is appended
-    /// to the stem to form a new candidate.
+    /// This function generates a file path by combining the provided directory and stem.
+    /// If the desired file already exists, it appends an incrementing counter to the stem to ensure uniqueness.
+    ///
+    /// # Parameters
+    /// - `dir`: The directory path where the output file will be created.
+    /// - `stem`: The base name of the file without the extension.
+    ///
+    /// # Returns
+    /// - The unique `PathBuf` representing the output file path.
+    ///
+    /// # Behavior
+    /// 1. Creates the initial candidate path with ".mp4" extension
+    /// 2. Checks if the candidate file exists:
+    ///    - If it doesn't exist, returns the candidate path
+    ///    - If it does exist, appends an incrementing counter to the stem until a unique name is found
     fn build_output_file(&self, dir: &Path, stem: &OsStr) -> PathBuf {
         debug!("Starting build_output_file function");
         debug!("Directory: {:?}, Stem: {:?}", dir, stem);
@@ -387,13 +621,22 @@ impl ClipperOutput {
         candidate.set_extension("mp4");
         debug!("Initial candidate path: {:?}", candidate);
 
-        // If the candidate already exists, generate a new stem and update the candidate.
+        // If the candidate already exists, generate a new stem by appending an incrementing counter.
         if candidate.exists() {
             debug!("Candidate path already exists: {:?}", candidate);
-            let new_stem = self.generate_random_name(stem);
-            debug!("Generated new stem: {:?}", new_stem);
-            candidate = dir.join(new_stem);
-            candidate.set_extension("mp4");
+            let stem_str = stem.to_string_lossy();
+            let mut counter = 1;
+            loop {
+                // Create a new candidate name by appending the counter
+                let new_stem = format!("{}_{}", stem_str, counter);
+                let mut new_candidate = dir.join(new_stem);
+                new_candidate.set_extension("mp4");
+                if !new_candidate.exists() {
+                    candidate = new_candidate;
+                    break;
+                }
+                counter += 1;
+            }
             debug!("Updated candidate path: {:?}", candidate);
         } else {
             debug!("Candidate path does not exist, using: {:?}", candidate);
@@ -403,6 +646,23 @@ impl ClipperOutput {
         candidate
     }
 }
+
+/// Creates a uniquely named directory, ensuring no existing directory with the same name.
+///
+/// This function attempts to create a directory with the given base name. If the directory
+/// already exists, it appends an incrementing counter to the base name until a unique
+/// directory is found.
+///
+/// # Parameters
+/// - `parent`: The parent directory path where the new directory should be created.
+/// - `base_name`: The base name of the directory to create.
+///
+/// # Returns
+/// - `Result<PathBuf>`: The path to the newly created directory on success.
+///
+/// # Notes
+/// - If the directory with `base_name` already exists, a numeric suffix is added
+///   (e.g., `name_1`, `name_2`, etc.) until a unique name is found.
 fn create_unique_dir(parent: &Path, base_name: &str) -> Result<PathBuf> {
     // Check if the directory with the base name already exists.
     let base_path = parent.join(base_name);
@@ -428,14 +688,18 @@ fn create_unique_dir(parent: &Path, base_name: &str) -> Result<PathBuf> {
     Ok(output_path)
 }
 
-/// Generates a random name by appending two random alphanumeric characters to the given base name.
-fn generate_random_name(base: &OsStr) -> String {
-    let mut rng = thread_rng();
-    let random_suffix: String = (0..2).map(|_| rng.sample(Alphanumeric) as char).collect();
-    format!("{}{}", base.to_string_lossy(), random_suffix)
-}
-
-// This method creates an explicit output directory.
+/// Creates an explicit output directory, ensuring all necessary parent directories exist.
+///
+/// This function validates and creates the specified output directory structure.
+///
+/// # Parameters
+/// - `output_dir`: The path to the output directory to be created.
+///
+/// # Returns
+/// - `Result<PathBuf>`: The created directory path on success, or an error if creation fails.
+///
+/// # Notes
+/// - Creates parent directories if they do not already exist.
 fn create_explicit_output_directory(output_dir: &str) -> Result<PathBuf> {
     debug!("Output directory provided: {:?}", output_dir);
     let output_path = Path::new(output_dir);

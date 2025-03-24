@@ -38,6 +38,16 @@ impl Verbosity {
 }
 
 #[derive(Args, Debug)]
+struct ClipperCommonOptions {
+    /// Optional path to the MP3 file (Exporter, Sampler)
+    #[arg(short = 'a', long = "audio", help = "Optional path to the MP3 file ")]
+    mp3: Option<String>,
+    /// Frames per second to extract (Exporter)
+    #[arg(short, long, help = "Frames per second to extract \n")]
+    fps: Option<String>,
+}
+
+#[derive(Args, Debug)]
 struct CommonOptions {
     /// Optional path to the MP3 file (Exporter, Sampler)
     #[arg(short = 'a', long = "audio", help = "Optional path to the MP3 file ")]
@@ -65,7 +75,7 @@ struct ClipperOptions {
     #[command(flatten)]
     io: ClipperInputOutput,
     #[command(flatten)]
-    common_options: CommonOptions,
+    common_options: ClipperCommonOptions,
 }
 
 #[derive(Args, Debug)]
@@ -100,7 +110,6 @@ pub struct ClutterOptions {
     #[arg(long = "clut-multiple", help = "Merge clutted images with original ", action = ArgAction::SetTrue)]
     pub clut_multiple: bool,
     /// Run the merging process after applying CLUT
-    #[arg(long = "clut-merge", help = "Run the merging process after applying CLUT \n", action = ArgAction::SetTrue)]
     pub clut_merge: bool,
 }
 
@@ -217,6 +226,21 @@ enum Mode {
     Clipper(ClipperOptions),
 }
 
+/// Main entry point for the application, handling command-line argument parsing and dispatching.
+///
+/// This function initializes the application, sets up logging, loads configuration, and dispatches execution
+/// based on the specified command-line mode.
+///
+/// # Parameters
+/// - None
+///
+/// # Returns
+/// - `Result<()>`: Indicates success or failure of the application execution
+///
+/// # Notes
+/// - This is the primary entry point of the application
+/// - Dispatches to different runtime modes based on the command-line arguments provided
+/// - Upon successful execution, returns `Ok(())`
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -272,6 +296,22 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+/// Processes images using the GMIC tool with specified options and configuration.
+///
+/// This function runs in GMIC mode, handling input validation, argument filtering,
+/// and output directory management.
+///
+/// # Parameters
+/// - `options`: Contains input, output, and GMIC arguments.
+/// - `config`: Configuration settings for the application.
+///
+/// # Returns
+/// - `Result<()>`: Indicates success or failure of image processing.
+///
+/// # Notes
+/// - The input must be a directory.
+/// - At least one GMIC argument is required.
+/// - Handles the `-o` flag for explicit output directories.
 fn run_gmicer(options: &GmicerOptions, _config: &Config) -> Result<()> {
     debug!("Running in GMIC mode");
 
@@ -315,6 +355,21 @@ fn run_gmicer(options: &GmicerOptions, _config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Merges images from two directories based on the provided options and configuration.
+///
+/// This function takes two directories of images, applies the specified opacity,
+/// and merges them into the output directory.
+///
+/// # Parameters
+/// - `options`: A struct containing input/output paths and opacity value.
+/// - `config`: Configuration containing default settings.
+///
+/// # Returns
+/// - `Result<()>`: Indicates success or failure of the merge operation.
+///
+/// # Notes
+/// - Extracts directories from the provided options and uses them for merging.
+/// - Returns an error if opacity resolution or image merging fails.
 fn run_merger(options: &MergerOptions, config: &Config) -> Result<()> {
     // Resolve the opacity using the value provided in the merger options.
     let opacity =
@@ -332,6 +387,17 @@ fn run_merger(options: &MergerOptions, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Processes video clips with synchronized audio using specified options and configuration.
+///
+/// This function handles the entire workflow of clipping video based on the provided parameters.
+/// It resolves input/output paths, audio files, FPS, and duration, then executes the clipping process.
+///
+/// # Parameters
+/// - `options`: Struct containing clipper-specific options, including input/output paths and FPS.
+/// - `config`: Configuration struct providing default values and settings.
+///
+/// # Returns
+/// - `Result<()>`: Indicates success or failure of the clipping process.
 fn run_clipper(options: &ClipperOptions, config: &Config) -> Result<()> {
     // Get input and output from the embedded I/O field.
     let input_dir = &options.io.input;
@@ -382,6 +448,20 @@ fn run_clipper(options: &ClipperOptions, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Executes the CLUT process, generating and merging images based on specified options.
+///
+/// This function initializes the CLUT process, creates CLUT images, and optionally merges
+/// them with opacity adjustments if enabled.
+///
+/// # Parameters
+/// - `options`: Configuration options for the CLUT process.
+/// - `config`: Application configuration containing additional settings.
+///
+/// # Returns
+/// - `Result<()>`: Indicates success or failure of the CLUT operation.
+///
+/// # Notes
+/// - Merging of CLUT images is performed only if the corresponding flags are enabled.
 fn run_clutter(options: &ClutterOptions, config: &Config) -> Result<()> {
     // Access input and output from the flattened InputOutput field
     let input_dir = &options.io.input;
@@ -450,6 +530,22 @@ fn run_clutter(options: &ClutterOptions, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Processes video and audio to generate samples according to specified parameters.
+///
+/// This function manages the sampling process, including input validation, duration calculation,
+/// and signal handling for interruptible operation.
+///
+/// # Parameters
+/// - `options`: Contains input/output paths, duration, and sampling configuration.
+/// - `config`: Application-level settings that may override or extend options.
+///
+/// # Returns
+/// - `Result<()>`: Indicates success or failure of the sampling process.
+///
+/// # Notes
+/// - Requires a valid video input path to proceed with sampling.
+/// - Supports interruptible operation through Ctrl+C handler.
+/// - Calculates appropriate duration and sampling number based on inputs.
 fn run_sampler(options: &SamplerOptions, config: &Config) -> Result<()> {
     // Ensure an input path is provided.
     let video_path = options.io.input.clone();
@@ -497,6 +593,21 @@ fn run_sampler(options: &SamplerOptions, config: &Config) -> Result<()> {
     Ok(())
 }
 
+/// Executes the image exporting process based on the provided options and configuration.
+///
+/// This function handles the core logic of exporting images from a video source,
+/// including resolving video paths, output settings, and processing parameters.
+///
+/// # Parameters
+/// - `options`: An `ExporterOptions` instance containing exporter-specific settings.
+/// - `config`: A `Config` instance providing global configuration settings.
+///
+/// # Returns
+/// - `Result<()>`: Indicates success or failure of the export operation.
+///
+/// # Notes
+/// - Manages input/output paths, video duration, FPS calculation, and pixel limits.
+/// - Creates and executes the exporter instance with calculated parameters.
 fn run_exporter(options: &ExporterOptions, config: &Config) -> Result<()> {
     // Use the new IO field for input/output
     let video_path = &options.io.input;

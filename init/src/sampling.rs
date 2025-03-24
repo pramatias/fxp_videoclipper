@@ -4,6 +4,12 @@ use std::env;
 
 use crate::literals::FXP_VIDEOCLIPPER_SAMPLING_NUMBER;
 
+enum SamplingSource {
+    Env(usize),
+    Config(usize),
+    Default,
+}
+
 /// Determines the sampling number based on provided parameters and configuration.
 ///
 /// # Parameters
@@ -35,12 +41,6 @@ pub fn get_sampling_number(multiple: bool, number: Option<usize>, config: &Confi
     }
 }
 
-enum SamplingSource {
-    Env(usize),
-    Config(usize),
-    Default,
-}
-
 /// A helper struct for single-frame sampling configuration.
 /// It tries to derive the sampling number from the configuration.
 #[derive(Debug)]
@@ -70,13 +70,22 @@ impl Default for Sampling {
 }
 
 impl Sampling {
-    /// Creates a new `Sampling` based on the provided configuration.
+    /// Creates a new `Sampling` instance based on configuration and environment settings.
     ///
-    /// The logic is as follows:
-    /// - First, check the FXP_VIDEOCLIPPER_SAMPLING_NUMBER environment variable.
-    ///   If it exists and can be parsed to a positive usize, that value is used.
-    /// - Otherwise, if the configuration's `sampling_number` is greater than 0, that value is used.
-    /// - If neither is provided, the default value (1) is used.
+    /// The function determines the sampling number through the following priority order:
+    /// 1. The FXP_VIDEOCLIPPER_SAMPLING_NUMBER environment variable (if valid)
+    /// 2. The `sampling_number` from the provided Config (if greater than 0)
+    /// 3. Defaults to 1 if no valid sources are found
+    ///
+    /// # Parameters
+    /// - `config`: A reference to the configuration containing sampling settings
+    ///
+    /// # Returns
+    /// - `Self`: The newly created `Sampling` instance with the determined number
+    ///
+    /// # Notes
+    /// - The environment variable must be a positive integer to be considered valid
+    /// - The default sampling number is 1 when no valid sources are provided
     pub fn new(config: &Config) -> Self {
         // Determine the sampling number source using the enum.
         let sampling_source = match env::var(FXP_VIDEOCLIPPER_SAMPLING_NUMBER) {
@@ -104,15 +113,15 @@ impl Sampling {
             SamplingSource::Env(num) => {
                 debug!("Using sampling number from FXP_VIDEOCLIPPER_SAMPLING_NUMBER environment variable: {}", num);
                 Self { number: num }
-            },
+            }
             SamplingSource::Config(num) => {
                 debug!("Using sampling number from configuration file: {}", num);
                 Self { number: num }
-            },
+            }
             SamplingSource::Default => {
                 debug!("No valid sampling number provided; defaulting to Sampling::default().");
                 Self::default()
-            },
+            }
         }
     }
 }

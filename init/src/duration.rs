@@ -84,11 +84,21 @@ pub fn get_duration(
     Ok(final_duration)
 }
 
-/// Returns the minimum of the calculated duration and the video's actual duration.
+/// Ensures the calculated duration does not exceed the actual video duration.
 ///
-/// This function gets the video duration from `video_path` and compares it to the `calculated_duration`.
-/// If the calculated duration exceeds the video's duration, it returns the video's duration.
-/// Otherwise, it returns the calculated duration.
+/// This function compares the calculated duration with the video's actual duration
+/// and returns the smaller of the two values.
+///
+/// # Parameters
+/// - `calculated_duration`: The calculated duration to validate
+/// - `video_path`: File path to the video for duration measurement
+///
+/// # Returns
+/// - `Result<u64>`: The minimum duration value or an error
+///
+/// # Notes
+/// - The function returns the calculated duration if it's less than or equal to
+///   the video duration, otherwise returns the video duration.
 pub fn minimum_duration(calculated_duration: u64, video_path: &str) -> Result<u64> {
     let video_duration = media_duration(video_path)
         .context("Error determining video duration in minimum_duration")?;

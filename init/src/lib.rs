@@ -2,6 +2,7 @@ mod audio_dir;
 mod config;
 mod duration;
 mod fps;
+mod literals;
 mod log_config;
 mod media_duration;
 mod mp3;
@@ -9,7 +10,6 @@ mod multiple_opacities;
 mod opacity;
 mod pixel;
 mod sampling;
-mod literals;
 
 pub use audio_dir::get_audio_dir;
 pub use config::initialize_configuration;

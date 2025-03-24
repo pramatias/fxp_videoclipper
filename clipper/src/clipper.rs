@@ -9,6 +9,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
+use tempfile;
 
 use modes::Modes;
 use output::ModeOutput;
@@ -41,14 +42,27 @@ pub struct Clipper {
 }
 
 impl Clipper {
-    /// Creates a new Clipper instance.
+    /// Creates a new Clipper instance for processing image and audio files.
+    ///
+    /// This function initializes a Clipper instance by validating and preparing input/output paths
+    /// and configurations.
     ///
     /// # Parameters
-    /// - `input_dir`: Path to the input directory.
-    /// - `mp3_path`: Optional MP3 file path.
-    /// - `output_path`: Optional output directory; if not provided, a default directory will be created inside the input directory.
-    /// - `fps`: Frames per second for the output video.
-    /// - `duration`: Duration in milliseconds for the video.
+    /// - `input_dir`: Path to the input directory containing image files (required).
+    /// - `mp3_path`: Optional path to an MP3 audio file for video creation.
+    /// - `output_path`: Optional custom output directory path. If not provided, a default directory
+    ///   will be created inside the input directory.
+    /// - `fps`: Frames per second for the output video (must be > 0).
+    /// - `duration`: Optional duration in milliseconds for the video.
+    ///
+    /// # Returns
+    /// - `Result<Self>`: A new Clipper instance on success, or an error if validation fails.
+    ///
+    /// # Notes
+    /// - The input directory must exist and contain image files.
+    /// - If an MP3 file is provided, it must exist and be a file.
+    /// - The output directory will be created if it doesn't exist.
+    /// - All validation errors return detailed error messages.
     pub fn new(
         input_dir: String,
         mp3_path: Option<String>,
@@ -126,19 +140,28 @@ impl Clipper {
 }
 
 impl Clipper {
+    /// Executes the video clipping process, handling both audio and video synchronization.
+    ///
+    /// This function manages the creation of temporary files, video/audio processing,
+    /// and handles interruptions gracefully.
+    ///
+    /// # Parameters
+    /// - `&self`: Implicit reference to the `Clipper` instance containing processing parameters.
+    ///
+    /// # Returns
+    /// - `Result<PathBuf>`: Path to the final clipped video file on success; `Err` on failure.
+    ///
+    /// # Notes
+    /// - Creates a temporary directory for intermediate processing.
+    /// - Handles video clipping with or without audio.
+    /// - Listens for Ctrl-C interruptions to allow user cancellation.
+    /// - In debug mode, copies temporary files to `/tmp/fxp_videoclipper` for inspection.
     pub fn clip(&self) -> Result<PathBuf> {
         debug!("Starting video clipping process...");
 
-            // Define the temporary directory path.
-    let tmp_dir_path = PathBuf::from("/tmp/fxp_videoclipper");
-
-    // If the directory exists, remove it to start fresh.
-    if tmp_dir_path.exists() {
-        fs::remove_dir_all(&tmp_dir_path)
-            .context("Failed to remove existing temporary directory")?;
-        debug!("Existing temporary directory removed: {:?}", tmp_dir_path);
-    }
-
+        // Create a temporary directory using the tempfile crate.
+        let tmp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
+        let tmp_dir_path = tmp_dir.path().to_path_buf();
 
         // Set up the running flag and register a Ctrl-C handler.
         let running = Arc::new(AtomicBool::new(false));
@@ -194,20 +217,38 @@ impl Clipper {
             self.output_path.clone()
         };
 
-        // Clean up the temporary directory.
-        debug!("Cleaning up temporary directory: {:?}", tmp_dir_path);
-        rm_tmp_dir(Some(&tmp_dir_path))?;
-        debug!("Temporary directory cleaned up successfully.");
-
         debug!(
             "Video clipping process completed successfully. Final video saved at: {:?}",
             final_video_path
         );
 
+        // In debug mode, copy the temporary directory contents to /tmp/fxp_videoclipper.
+        #[cfg(debug_assertions)]
+        {
+            let debug_dir = PathBuf::from("/tmp/fxp_videoclipper");
+            copy_tmp_dir_contents(tmp_dir.path(), &debug_dir)?;
+        }
+
         Ok(final_video_path)
     }
 }
 
+/// Sets up and prepares image files for Clipper processing.
+///
+/// This function reads an input directory, validates the image files, and prepares them for processing.
+///
+/// # Parameters
+/// - `input_directory`: Path to the directory containing the input image files.
+/// - `output_directory`: Path to the directory where processed files will be output.
+///
+/// # Returns
+/// - `Result<(PathBuf, BTreeMap<u32, PathBuf>, usize)>`:
+///   - `PathBuf`: Output directory path.
+///   - `BTreeMap<u32, PathBuf>`: Mapping of frame IDs to their paths.
+///   - `usize`: Total number of frames.
+///
+/// # Notes
+/// - Returns an error if the input directory contains no valid image frames.
 fn setup_clipper_processing(
     input_directory: &Path,
     output_directory: &Path,
@@ -222,7 +263,6 @@ fn setup_clipper_processing(
     debug!("Found {} files in input directory", images.len());
 
     // Use FileOperations trait implemented for Modes on the Clipper mode.
-    // This replaces the usage of PrefixSuffixValidator.
     let frames = Modes::Clipper
         .load_files(&images)
         .map_err(|e| ImageMappingError::RenameError(e.to_string()))?;
@@ -241,35 +281,43 @@ fn setup_clipper_processing(
     Ok((output_directory.to_path_buf(), frames, total_frames))
 }
 
-/// Handles temporary directories based on build mode.
+/// Copies the contents of a temporary directory to a debug directory for inspection.
 ///
-/// This function manages the cleanup or retention of temporary directories.
+/// This function is used to duplicate files from a temporary directory into a debug directory,
+/// which is useful for debugging purposes.
 ///
 /// # Parameters
-/// - =tmp_dir=: An optional reference to a =PathBuf= representing the temporary directory.
+/// - `tmp_dir`: The path to the temporary directory containing files to copy.
+/// - `debug_dir`: The path where the files will be copied for debugging.
 ///
 /// # Returns
-/// - =Result<()>=: Indicates success or failure of the operation.
+/// - `Result<()>`: Returns `Ok(())` if successful. Returns an error if the source directory
+///   cannot be read or if there's an issue during copying.
 ///
 /// # Notes
-/// - In release mode, the function removes the directory and logs the action.
-/// - In debug mode, the directory is retained and a message is logged instead.
-fn rm_tmp_dir(tmp_dir: Option<&PathBuf>) -> Result<()> {
-    if let Some(tmp_dir) = tmp_dir {
-        #[cfg(not(debug_assertions))]
-        {
-            fs::remove_dir_all(tmp_dir.as_path())
-                .context("Failed to delete temporary directory")?;
-            debug!("Temporary directory removed in release mode.");
-        }
+/// - This function is only available when `debug_assertions` are enabled.
+/// - If the destination directory does not exist, it will be created before copying files.
+/// - Each file copy operation will return an error if it fails, preventing further copies.
+#[cfg(debug_assertions)]
+fn copy_tmp_dir_contents(tmp_dir: &Path, debug_dir: &Path) -> Result<()> {
+    // Create the debug directory if it doesn't exist.
+    if !debug_dir.exists() {
+        fs::create_dir_all(debug_dir).context(format!(
+            "Failed to create debug directory: {}",
+            debug_dir.display()
+        ))?;
+    }
 
-        #[cfg(debug_assertions)]
-        {
-            debug!(
-                "Temporary directory retained for debugging: {:?}",
-                tmp_dir.as_path()
-            );
+    // Iterate and copy each file from tmp_dir to debug_dir.
+    for entry in fs::read_dir(tmp_dir).context("Failed to read temporary directory")? {
+        let entry = entry?;
+        let src_path = entry.path();
+        if let Some(file_name) = src_path.file_name() {
+            let dest_path = debug_dir.join(file_name);
+            fs::copy(&src_path, &dest_path)
+                .context(format!("Failed to copy {:?} to {:?}", src_path, dest_path))?;
         }
     }
+    debug!("Copied temporary files to {}", debug_dir.display());
     Ok(())
 }

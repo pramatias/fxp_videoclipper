@@ -22,6 +22,22 @@ pub struct Clutter {
 }
 
 impl Clutter {
+    /// Creates a new `Clutter` instance for processing image files.
+    ///
+    /// This constructor initializes the necessary paths and validates their existence.
+    ///
+    /// # Parameters
+    /// - `input_directory`: Path to the directory containing input image files.
+    /// - `clut_image`: Path to the CLUT image file.
+    /// - `output_directory`: Optional path for output files; defaults to input directory if not provided.
+    ///
+    /// # Returns
+    /// - `Result<Self>`: New `Clutter` instance on success, or an error if validation fails.
+    ///
+    /// # Notes
+    /// - Validates and canonicalizes all paths to ensure proper filesystem handling.
+    /// - Creates output directory if it does not exist.
+    /// - Sets up initial processing files from input directory.
     pub fn new(
         input_directory: String,
         clut_image: String,
