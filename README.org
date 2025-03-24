@@ -89,15 +89,94 @@ fxp_videoclipper exporter -i sample_video.mp4 -o frames_output -d 20000 -f 15
 **Explanation:**
 - Uses shorthand flags for input (-i) and output (-o).
 - Extracts frames from the first 20 seconds at 15 FPS.
+* Sampler Command
+The sampler mode extracts frames evenly across a video. It supports several options for flexible sampling:
 
-* Additional Documentation
-For more information on other commands and detailed configuration options, refer to the respective sections below:
+- **-i, --input**: Input video file.
+- **-o, --output**: Output directory where the sampled frames will be saved.
+- **-u, --multiple**: Flag to enable extraction of multiple frames.
+- **-n, --number**: Specifies the number of frames to extract when using multiple sampling.
+- **-a, --audio**: Optional path to an MP3 file to accompany the sampling.
+- **-d, --duration**: Duration in milliseconds to cut the video for sampling.
 
-- *Sampler*: Sample frames evenly from a video.
-- *Merger*: Merge two directories of images.
-- *Gmicer*: Apply a GMIC command to images.
-- *Clutter*: Transfer colors using a CLUT file.
-- *Clipper*: Create the videoclip.
+Below are some usage examples:
+
+** Example 1: Basic Single Frame Sampling
+
+This command samples frames evenly across the video using default settings.
+
+#+BEGIN_SRC bash
+fxp_videoclipper sampler -i path/to/video.mp4
+#+END_SRC
+
+** Explanation:
+- Samples frames from *video.mp4*.
+- No output directory is specified, so the default location is used.
+
+** Example 2: Multiple Frame Sampling with Specified Number
+
+Extract a fixed number of frames from the video and specify an output directory.
+
+#+BEGIN_SRC bash
+fxp_videoclipper sampler -i path/to/video.mp4 -o path/to/sampled_frames -u -n 10
+#+END_SRC
+
+** Explanation:
+- Uses the `--multiple` flag to extract multiple frames.
+- Extracts 10 frames and saves them to the *sampled_frames* directory.
+
+** Example 3: Sampling with Audio Overlay and Custom Duration
+
+Sample frames from a portion of the video and synchronize with an audio track.
+
+#+BEGIN_SRC bash
+fxp_videoclipper sampler -i path/to/video.mp4 -o path/to/sampled_frames -a path/to/audio.mp3 -d 30000
+#+END_SRC
+
+** Explanation:
+- Cuts the video to a 30,000 millisecond (30 seconds) clip.
+- Uses an MP3 file for audio synchronization.
+- Saves the sampled frames to the specified output directory.
+* Merger Command Guide
+This section explains how to use the merger command to blend two directories of images.
+
+** Overview
+The merger command allows you to merge images from two different directories. The primary input directory is provided using the `--input` option, while the second directory is specified with `--second-directory`. You can also set an opacity level to control the blending effect.
+
+** Command Usage
+#+BEGIN_SRC bash
+fxp_videoclipper merger [OPTIONS] --input <INPUT> --second-directory <DIRECTORY2>
+#+END_SRC
+
+** Options
+- **-i, --input <INPUT>**
+  Input directory for the first set of images.
+- **-r, --second-directory <DIRECTORY2>**
+  Path to the second image directory.
+- **-o, --output <OUTPUT>**
+  (Optional) Output directory where merged images will be saved.
+- **-t, --opacity <OPACITY>**
+  Opacity level for merging images.
+  *Default value:* 0.5
+
+** Example Usage
+Here is an example of how to merge two directories with a custom opacity level:
+
+#+BEGIN_SRC bash
+fxp_videoclipper merger \
+  --input path/to/first_directory \
+  --second-directory path/to/second_directory \
+  --output path/to/output_directory \
+  --opacity 0.7
+#+END_SRC
+
+** Explanation
+- **Input Directory (`--input`)**: The first directory containing images to merge.
+- **Second Directory (`--second-directory`)**: The second set of images to be merged.
+- **Output Directory (`--output`)**: The location where the merged images will be saved.
+- **Opacity (`--opacity`)**: Adjusts the blending; in this example, the opacity is set to 0.7.
+
+With these instructions, users should be able to effectively utilize the merger functionality in fxp_videoclipper.
 
 * Contributing
 Contributions are welcome! Please see CONTRIBUTING.org for guidelines on how to help improve fxp_videoclipper.
