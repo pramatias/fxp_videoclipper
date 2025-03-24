@@ -32,12 +32,12 @@ For detailed help on each subcommand, append `-h` to the command name. For examp
 * Exporter Command
 The exporter mode extracts frames from a video based on duration and resolution. It supports the following options:
 
-- **-i, --input**: Input video file.
-- **-o, --output**: Output directory to save frames.
-- **-p, --pixel-limit**: Maximum upper limit for pixel resolution.
-- **-a, --audio**: Optional MP3 file path.
-- **-d, --duration**: Duration in milliseconds to cut the video.
-- **-f, --fps**: Frames per second to extract.
+- ** -i, --input**: Input video file.
+- ** -o, --output**: Output directory to save frames.
+- ** -p, --pixel-limit**: Maximum upper limit for pixel resolution.
+- ** -a, --audio**: Optional MP3 file path.
+- ** -d, --duration**: Duration in milliseconds to cut the video.
+- ** -f, --fps**: Frames per second to extract.
 
 Below are several examples demonstrating how to use the exporter command.
 
