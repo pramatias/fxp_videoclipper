@@ -21,11 +21,11 @@ Before building and using fxp_videoclipper, ensure that you have the following t
 
 ** Prerequisites
 
-- **Rust and Cargo**
+- *Rust and Cargo*
   - Required for building the project.
   - Installation instructions: [https://www.rust-lang.org/tools/install]
 
-- **ffmpeg (version 6.1.1 or later)**
+- *ffmpeg (version 6.1.1 or later)*
   - Required for the *exporter*, *sampler*, and *clipper* subcommands.
   - Installation instructions:
     - On Ubuntu/Debian:
@@ -38,7 +38,7 @@ Before building and using fxp_videoclipper, ensure that you have the following t
       #+END_SRC
     - Alternatively, download from: [https://ffmpeg.org/download.html]
 
-- **gmic (version 3.5.0 or later)**
+- *gmic (version 3.5.0 or later)*
   - Required for the *gmicer* subcommand.
   - Installation instructions:
     - On Ubuntu/Debian:
@@ -51,7 +51,7 @@ Before building and using fxp_videoclipper, ensure that you have the following t
       #+END_SRC
     - Alternatively, download from: [https://gmic.eu/download.html]
 
-- **ImageMagick (convert, version 6.9.12-98 or later)**
+- *ImageMagick (convert, version 6.9.12-98 or later)*
   - Required for the *clutter* subcommand.
   - Installation instructions:
     - On Ubuntu/Debian:
