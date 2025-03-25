@@ -86,7 +86,7 @@ For a simple extraction without audio or pixel limitations, just provide the ess
 fxp_videoclipper exporter -i sample_video.mp4 -o frames_output -d 20000 -f 15
 #+END_SRC
 
-**Explanation:**
+*Explanation:*
 - Uses shorthand flags for input (-i) and output (-o).
 - Extracts frames from the first 20 seconds at 15 FPS.
 * Sampler Command
@@ -109,7 +109,7 @@ This command samples frames evenly across the video using default settings.
 fxp_videoclipper sampler -i path/to/video.mp4
 #+END_SRC
 
-** Explanation:
+*Explanation:*
 - Samples frames from *video.mp4*.
 - No output directory is specified, so the default location is used.
 
@@ -121,7 +121,7 @@ Extract a fixed number of frames from the video and specify an output directory.
 fxp_videoclipper sampler -i path/to/video.mp4 -o path/to/sampled_frames -u -n 10
 #+END_SRC
 
-** Explanation:
+*Explanation:*
 - Uses the `--multiple` flag to extract multiple frames.
 - Extracts 10 frames and saves them to the *sampled_frames* directory.
 
@@ -133,7 +133,7 @@ Sample frames from a portion of the video and synchronize with an audio track.
 fxp_videoclipper sampler -i path/to/video.mp4 -o path/to/sampled_frames -a path/to/audio.mp3 -d 30000
 #+END_SRC
 
-** Explanation:
+*Explanation:*
 - Cuts the video to a 30,000 millisecond (30 seconds) clip.
 - Uses an MP3 file for audio synchronization.
 - Saves the sampled frames to the specified output directory.
@@ -170,14 +170,14 @@ fxp_videoclipper merger \
   --opacity 0.7
 #+END_SRC
 
-** Explanation
-- * Input Directory (`--input`) *: The first directory containing images to merge.
-- **Second Directory (`--second-directory`)**: The second set of images to be merged.
-- **Output Directory (`--output`)**: The location where the merged images will be saved.
-- **Opacity (`--opacity`)**: Adjusts the blending; in this example, the opacity is set to 0.7.
+*Explanation:*
+- Input Directory (`--input`) : The first directory containing images to merge.
+- Second Directory (`--second-directory`): The second set of images to be merged.
+- Output Directory (`--output`): The location where the merged images will be saved.
+- Opacity (`--opacity`): Adjusts the blending; in this example, the opacity is set to 0.7.
 
 With these instructions, users should be able to effectively utilize the merger functionality in fxp_videoclipper.
-* GMIC Command Guide
+* Gmicer Command Guide
 This section explains how to use the GMIC command to apply a GMIC operation to all images within an input directory.
 
 ** Overview
@@ -189,11 +189,11 @@ fxp_videoclipper gmicer [OPTIONS] --input <INPUT> [GMIC_ARGS]...
 #+END_SRC
 
 ** Options and Arguments
-- **-i, --input <INPUT>**
+- *-i, --input <INPUT>*
   Input directory containing the images to process.
-- **-o, --output <OUTPUT>**
+- *-o, --output <OUTPUT>*
   (Optional) Output directory where the processed images will be saved.
-- **[GMIC_ARGS]...**
+- *[GMIC_ARGS]...*
   Arguments that are directly passed to the GMIC command.
 
 ** Example Usage
@@ -206,10 +206,10 @@ fxp_videoclipper gmicer \
   -fx_dreamsmooth 10,0.5,0.8,1
 #+END_SRC
 
-** Explanation
-- **Input Directory (`--input`)**: Specifies the folder containing the images you want to process.
-- **Output Directory (`--output`)**: Defines where the processed images will be saved; if omitted, the program may use default handling.
-- **GMIC Arguments (`[GMIC_ARGS]...`)**: Additional arguments passed to GMIC, allowing for customizable image processing. In the example, the GMIC command `-fx_dreamsmooth 10,0.5,0.8,1` is applied to each image.
+*Explanation*
+- *Input Directory (`--input`)*: Specifies the folder containing the images you want to process.
+- *Output Directory (`--output`)*: Defines where the processed images will be saved; if omitted, the program may use default handling.
+- *GMIC Arguments (`[GMIC_ARGS]...`)*: Additional arguments passed to GMIC, allowing for customizable image processing. In the example, the GMIC command `-fx_dreamsmooth 10,0.5,0.8,1` is applied to each image.
 
 This guide helps users understand how to leverage the GMIC functionality within `fxp_videoclipper` for batch image processing.
 
