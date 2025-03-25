@@ -11,16 +11,16 @@ use std::sync::{
 };
 use tempfile;
 
-use modes::Modes;
-use output::ModeOutput;
-use output::Output;
+use fxp_modes::Modes;
+use fxp_output::ModeOutput;
+use fxp_output::Output;
 
 use crate::clip::create_video_without_audio;
 use crate::clip::merge_video_audio;
 use crate::clip::trim_merged_video;
 
-use filenames::FileOperations;
-use filenames::ImageMappingError;
+use fxp_filenames::FileOperations;
+use fxp_filenames::ImageMappingError;
 
 /// Struct for handling video processing operations.
 #[derive(Debug)]

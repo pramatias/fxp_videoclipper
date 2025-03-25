@@ -11,18 +11,18 @@ anyhow = "1.0.95"
 clap-verbosity-flag = "3.0.2"
 console = "0.15.10"
 
-init = { version = "0.4.0", path = "init" }
-modes = { version = "0.1.0", path = "modes"}
+fxp_init = { version = "0.4.0", path = "fxp_init" }
+fxp_modes = { version = "0.4.0", path = "fxp_modes"}
 
-exporter = { version = "0.4.0", path = "exporter" }
-sampler = { version = "0.4.0", path = "sampler" }
-merger = { version = "0.4.0", path = "merger"}
-clutter = { version = "0.4.0", path = "./clutter" }
-gmicer = { version = "0.4.0", path = "gmicer" }
+fxp_exporter = { version = "0.4.0", path = "fxp_exporter" }
+fxp_sampler = { version = "0.4.0", path = "fxp_sampler" }
+fxp_merger = { version = "0.4.0", path = "fxp_merger"}
+fxp_clutter = { version = "0.4.0", path = "fxp_clutter" }
+fxp_gmicer = { version = "0.4.0", path = "fxp_gmicer" }
 fxp_clipper = { version = "0.4.0", path = "fxp_clipper" }
 
-filenames = { version = "0.4.0", path = "filenames"}
-output = { version = "0.4.0", path = "output"}
+fxp_filenames = { version = "0.4.0", path = "fxp_filenames"}
+fxp_output = { version = "0.4.0", path = "fxp_output"}
 
 [workspace]
-members = ["init", "exporter", "clutter", "filenames", "merger", "sampler", "gmicer", "fxp_clipper", "modes", "output",]
+members = ["fxp_init", "fxp_exporter", "fxp_clutter", "fxp_filenames", "fxp_merger", "fxp_sampler", "fxp_gmicer", "fxp_clipper", "fxp_modes", "fxp_output",]

@@ -298,21 +298,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
-name = "clutter"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "ctrlc",
- "filenames",
- "image",
- "indicatif",
- "log",
- "modes",
- "output",
- "rand",
-]
-
-[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -491,20 +476,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "exporter"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "ctrlc",
- "indicatif",
- "log",
- "modes",
- "output",
- "rand",
- "tempfile",
-]
-
-[[package]]
 name = "exr"
 version = "1.73.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -535,17 +506,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "filenames"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "log",
- "modes",
- "regex",
- "thiserror 2.0.11",
-]
-
-[[package]]
 name = "flate2"
 version = "1.0.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -561,15 +521,128 @@ version = "0.4.0"
 dependencies = [
  "anyhow",
  "ctrlc",
- "filenames",
+ "fxp_filenames",
+ "fxp_modes",
+ "fxp_output",
  "indicatif",
  "log",
- "modes",
- "output",
  "rand",
  "regex",
  "tempfile",
  "thiserror 2.0.11",
+]
+
+[[package]]
+name = "fxp_clutter"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "ctrlc",
+ "fxp_filenames",
+ "fxp_modes",
+ "fxp_output",
+ "image",
+ "indicatif",
+ "log",
+ "rand",
+]
+
+[[package]]
+name = "fxp_exporter"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "ctrlc",
+ "fxp_modes",
+ "fxp_output",
+ "indicatif",
+ "log",
+ "rand",
+ "tempfile",
+]
+
+[[package]]
+name = "fxp_filenames"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "fxp_modes",
+ "log",
+ "regex",
+ "thiserror 2.0.11",
+]
+
+[[package]]
+name = "fxp_gmicer"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "console",
+ "ctrlc",
+ "fxp_filenames",
+ "fxp_modes",
+ "fxp_output",
+ "indicatif",
+ "log",
+ "rand",
+ "regex",
+ "thiserror 2.0.11",
+]
+
+[[package]]
+name = "fxp_init"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "confy",
+ "console",
+ "dialoguer",
+ "directories",
+ "env_logger",
+ "log",
+ "rolling-file",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "fxp_merger"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "fxp_filenames",
+ "fxp_modes",
+ "fxp_output",
+ "image",
+ "indicatif",
+ "log",
+ "rand",
+]
+
+[[package]]
+name = "fxp_modes"
+version = "0.4.0"
+
+[[package]]
+name = "fxp_output"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "fxp_modes",
+ "log",
+]
+
+[[package]]
+name = "fxp_sampler"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "ctrlc",
+ "fxp_modes",
+ "fxp_output",
+ "indicatif",
+ "log",
+ "rand",
 ]
 
 [[package]]
@@ -579,19 +652,19 @@ dependencies = [
  "anyhow",
  "clap",
  "clap-verbosity-flag",
- "clutter",
  "console",
  "ctrlc",
- "exporter",
- "filenames",
  "fxp_clipper",
- "gmicer",
- "init",
+ "fxp_clutter",
+ "fxp_exporter",
+ "fxp_filenames",
+ "fxp_gmicer",
+ "fxp_init",
+ "fxp_merger",
+ "fxp_modes",
+ "fxp_output",
+ "fxp_sampler",
  "log",
- "merger",
- "modes",
- "output",
- "sampler",
 ]
 
 [[package]]
@@ -625,23 +698,6 @@ checksum = "3fb2d69b19215e18bb912fa30f7ce15846e301408695e44e0ef719f1da9e19f2"
 dependencies = [
  "color_quant",
  "weezl",
-]
-
-[[package]]
-name = "gmicer"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "console",
- "ctrlc",
- "filenames",
- "indicatif",
- "log",
- "modes",
- "output",
- "rand",
- "regex",
- "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -755,22 +811,6 @@ dependencies = [
  "portable-atomic",
  "unicode-width",
  "web-time",
-]
-
-[[package]]
-name = "init"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "confy",
- "console",
- "dialoguer",
- "directories",
- "env_logger",
- "log",
- "rolling-file",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -900,20 +940,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
-name = "merger"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "filenames",
- "image",
- "indicatif",
- "log",
- "modes",
- "output",
- "rand",
-]
-
-[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -928,10 +954,6 @@ dependencies = [
  "adler2",
  "simd-adler32",
 ]
-
-[[package]]
-name = "modes"
-version = "0.1.0"
 
 [[package]]
 name = "new_debug_unreachable"
@@ -1034,15 +1056,6 @@ name = "option-ext"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
-
-[[package]]
-name = "output"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "log",
- "modes",
-]
 
 [[package]]
 name = "paste"
@@ -1315,19 +1328,6 @@ name = "ryu"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ea1a2d0a644769cc99faa24c3ad26b379b786fe7c36fd3c546254801650e6dd"
-
-[[package]]
-name = "sampler"
-version = "0.4.0"
-dependencies = [
- "anyhow",
- "ctrlc",
- "indicatif",
- "log",
- "modes",
- "output",
- "rand",
-]
 
 [[package]]
 name = "serde"

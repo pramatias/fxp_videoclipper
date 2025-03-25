@@ -5,10 +5,10 @@ use console::style;
 use log::{debug, warn};
 use std::path::Path;
 
-use init::get_audio_file;
-use init::{get_audio_dir, get_audio_duration, get_multiple_opacities};
-use init::{get_duration, get_fps, get_opacity, get_pixel_upper_limit, get_sampling_number};
-use init::{initialize_configuration, initialize_logger, load_default_configuration, Config};
+use fxp_init::get_audio_file;
+use fxp_init::{get_audio_dir, get_audio_duration, get_multiple_opacities};
+use fxp_init::{get_duration, get_fps, get_opacity, get_pixel_upper_limit, get_sampling_number};
+use fxp_init::{initialize_configuration, initialize_logger, load_default_configuration, Config};
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -346,7 +346,7 @@ fn run_gmicer(options: &GmicerOptions, _config: &Config) -> Result<()> {
     debug!("Final GMIC output directory: {:?}", output);
 
     // Create the GMIC processor instance using the input, output, and filtered GMIC args.
-    let gmicer = gmicer::Gmicer::new(input, output.as_deref(), filtered_args)
+    let gmicer = fxp_gmicer::Gmicer::new(input, output.as_deref(), filtered_args)
         .context("Failed to initialize GMIC processor")?;
     gmicer
         .gmic_images()
@@ -382,7 +382,7 @@ fn run_merger(options: &MergerOptions, config: &Config) -> Result<()> {
     let output = options.io.output.clone();
 
     // Initialize the merger with the provided directories, opacity, and output.
-    let merger = merger::Merger::new(directory1, directory2, opacity, output);
+    let merger = fxp_merger::Merger::new(directory1, directory2, opacity, output);
     merger?.merge_images().context("Failed to merge images")?;
     Ok(())
 }
@@ -474,7 +474,7 @@ fn run_clutter(options: &ClutterOptions, config: &Config) -> Result<()> {
     debug!("CLUT image: {:?}", clut_image);
 
     // Create a Clutter instance using the input directory, CLUT image, and output.
-    let clutter = clutter::Clutter::new(input_dir.clone(), clut_image.clone(), output);
+    let clutter = fxp_clutter::Clutter::new(input_dir.clone(), clut_image.clone(), output);
     debug!(
         "Clutter instance created with input_dir: {:?} and clut_image: {:?}",
         input_dir, clut_image
@@ -571,7 +571,7 @@ fn run_sampler(options: &SamplerOptions, config: &Config) -> Result<()> {
     debug!("Using resolved sampling number: {}", sampling_number);
 
     // Create sampler arguments.
-    let sampler_args = sampler::Sampler::new(video_path, output_path, duration, sampling_number);
+    let sampler_args = fxp_sampler::Sampler::new(video_path, output_path, duration, sampling_number);
     debug!("Sampler CLI Arguments: {:?}", sampler_args);
 
     // Set up a Ctrl+C handler.
@@ -639,7 +639,7 @@ fn run_exporter(options: &ExporterOptions, config: &Config) -> Result<()> {
     });
     debug!("Resolved pixel upper limit: {}", pixel_upper_limit);
 
-    let exporter = exporter::Exporter::new(
+    let exporter = fxp_exporter::Exporter::new(
         video_path.to_string(),
         output_path.clone(),
         duration,
@@ -680,7 +680,7 @@ fn merging(
 
     for opacity in opacities {
         debug!("Merging images with opacity: {}", opacity);
-        let merger = merger::Merger::new(input_dir.clone(), clut_dir.clone(), opacity, None)
+        let merger = fxp_merger::Merger::new(input_dir.clone(), clut_dir.clone(), opacity, None)
             .context("Failed to initialize image merger")?;
 
         let output_directory = merger.merge_images()?; // Apply the `?` operator here
