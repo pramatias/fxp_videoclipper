@@ -432,7 +432,7 @@ fn run_clipper(options: &ClipperOptions, config: &Config) -> Result<()> {
     }
 
     // Initialize the Clipper with the resolved parameters.
-    let clipper = clipper::Clipper::new(
+    let clipper = fxp_clipper::Clipper::new(
         input_dir.clone(),
         mp3_path_str,
         output_path,

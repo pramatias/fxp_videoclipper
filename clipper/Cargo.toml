@@ -19,5 +19,5 @@ output = { path = "../output"}
 tempfile = "3.19.1"
 
 [lib]
-name = "clipper"
+name = "fxp_clipper"
 path = "src/lib.rs"
