@@ -17,7 +17,7 @@ modes = { version = "0.1.0", path = "modes"}
 exporter = { version = "0.4.0", path = "exporter" }
 sampler = { version = "0.4.0", path = "sampler" }
 merger = { version = "0.4.0", path = "merger"}
-clutter = { version = "0.4.0", path = "clutter" }
+clutter = { version = "0.4.0", path = "./clutter" }
 gmicer = { version = "0.4.0", path = "gmicer" }
 fxp_clipper = { version = "0.4.0", path = "fxp_clipper" }
 
