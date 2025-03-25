@@ -213,6 +213,106 @@ fxp_videoclipper gmicer \
 
 This guide helps users understand how to leverage the GMIC functionality within `fxp_videoclipper` for batch image processing.
 
+* Clutter Command
+The clutter mode transfers colors using a CLUT (Color Look-Up Table) file. This mode applies a color transfer effect to images from a given input directory. The available options are:
+
+Usage: fxp_videoclipper clutter [OPTIONS] --input <INPUT> --clut <CLUT_IMAGE>
+
+Options:
+  -i, --input <INPUT>                Input directory
+  -o, --output <OUTPUT>              Output directory
+
+  -l, --clut <CLUT_IMAGE>            Path to the source image used for CLUT
+      --clut-opacity <CLUT_OPACITY>  Opacity level for merging in clutter mode
+      --clut-multiple                Merge clutted images with original
+      --clut-merge                   Run the merging process after applying CLUT
+
+  -h, --help                         Print help
+
+** Example 1: Basic CLUT Transfer
+
+Apply a CLUT file to images in a directory, saving the output to a specified location.
+
+#+BEGIN_SRC bash
+fxp_videoclipper clutter \
+  --input path/to/input_images \
+  --output path/to/output_images \
+  --clut path/to/clut_image.png
+#+END_SRC
+
+*Explanation:*
+- Applies the color transfer using the CLUT image provided.
+- Processes all images from *input_images* and outputs them to *output_images*.
+
+** Example 2: CLUT Transfer with Opacity and Merging
+
+Apply a CLUT file with a specific opacity and merge the processed images with the original ones.
+
+#+BEGIN_SRC bash
+fxp_videoclipper clutter \
+  --input path/to/input_images \
+  --output path/to/output_images \
+  --clut path/to/clut_image.png \
+  --clut-opacity 0.75 \
+  --clut-multiple \
+  --clut-merge
+#+END_SRC
+
+*Explanation:*
+- Uses a 75% opacity level for the CLUT effect.
+- Merges the clutted images with the original images after applying the CLUT.
+
+
+
+
+
+* Clipper Command
+The clipper mode creates a complete videoclip by assembling processed frames. It supports the following options:
+
+Usage: fxp_videoclipper clipper [OPTIONS] --input <INPUT>
+
+Options:
+  -i, --input <INPUT>    Input directory
+  -o, --output <OUTPUT>  Output video
+
+  -a, --audio <MP3>      Optional path to the MP3 file
+  -f, --fps <FPS>        Frames per second to extract
+
+  -h, --help             Print help
+
+** Example 1: Create Videoclip without Audio
+
+Generate a videoclip from a series of frames stored in an input directory and output the final video.
+
+#+BEGIN_SRC bash
+fxp_videoclipper clipper \
+  --input path/to/processed_frames \
+  --output path/to/final_video.mp4 \
+  --fps 25
+#+END_SRC
+
+*Explanation:*
+- Takes frames from *processed_frames* and assembles them into a video.
+- The resulting video is saved as *final_video.mp4*.
+- The clip is generated at 25 frames per second.
+
+** Example 2: Create Videoclip with Audio
+
+Generate a videoclip from frames and synchronize it with an optional MP3 audio file.
+
+#+BEGIN_SRC bash
+fxp_videoclipper clipper \
+  --input path/to/processed_frames \
+  --output path/to/final_video.mp4 \
+  --audio path/to/audio.mp3 \
+  --fps 30
+#+END_SRC
+
+*Explanation:*
+- Processes frames from *processed_frames*.
+- The final video is output as *final_video.mp4*.
+- An audio file (*audio.mp3*) is integrated.
+- The video is created at 30 frames per second.
 * Contributing
 Contributions are welcome! Please see CONTRIBUTING.org for guidelines on how to help improve fxp_videoclipper.
 
