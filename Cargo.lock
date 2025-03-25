@@ -299,7 +299,7 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
 name = "clipper"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "ctrlc",
@@ -316,7 +316,7 @@ dependencies = [
 
 [[package]]
 name = "clutter"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "ctrlc",
@@ -509,7 +509,7 @@ dependencies = [
 
 [[package]]
 name = "exporter"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "ctrlc",
@@ -553,7 +553,7 @@ dependencies = [
 
 [[package]]
 name = "filenames"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "log",
@@ -574,7 +574,7 @@ dependencies = [
 
 [[package]]
 name = "fxp_videoclipper"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -591,7 +591,6 @@ dependencies = [
  "merger",
  "modes",
  "output",
- "owo-colors",
  "sampler",
 ]
 
@@ -630,7 +629,7 @@ dependencies = [
 
 [[package]]
 name = "gmicer"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "console",
@@ -760,7 +759,7 @@ dependencies = [
 
 [[package]]
 name = "init"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "confy",
@@ -902,7 +901,7 @@ checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
 name = "merger"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "filenames",
@@ -1038,18 +1037,12 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "output"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "log",
  "modes",
 ]
-
-[[package]]
-name = "owo-colors"
-version = "4.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1036865bb9422d3300cf723f657c2851d0e9ab12567854b1f4eba3d77decf564"
 
 [[package]]
 name = "paste"
@@ -1325,7 +1318,7 @@ checksum = "6ea1a2d0a644769cc99faa24c3ad26b379b786fe7c36fd3c546254801650e6dd"
 
 [[package]]
 name = "sampler"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "ctrlc",
