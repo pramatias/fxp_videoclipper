@@ -2,6 +2,8 @@
 name = "fxp_output"
 version = "0.4.0"
 edition = "2021"
+description = "Output file and directory handling for fxp_videoclipper"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 anyhow = "1.0.96"

@@ -2,6 +2,8 @@
 name = "fxp_videoclipper"
 version = "0.4.0"
 edition = "2021"
+description = "fxp_videoclipper a tool for making amateur videoclips"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 clap = "4.5.23"
