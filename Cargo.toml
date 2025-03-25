@@ -19,10 +19,10 @@ sampler = { version = "0.4.0", path = "sampler" }
 merger = { version = "0.4.0", path = "merger"}
 clutter = { version = "0.4.0", path = "clutter" }
 gmicer = { version = "0.4.0", path = "gmicer" }
-clipper = { version = "0.4.0", path = "clipper" }
+fxp_clipper = { version = "0.4.0", path = "fxp_clipper" }
 
 filenames = { version = "0.4.0", path = "filenames"}
 output = { version = "0.4.0", path = "output"}
 
 [workspace]
-members = ["init", "exporter", "clutter", "filenames", "merger", "sampler", "gmicer", "clipper", "modes", "output",]
+members = ["init", "exporter", "clutter", "filenames", "merger", "sampler", "gmicer", "fxp_clipper", "modes", "output",]
