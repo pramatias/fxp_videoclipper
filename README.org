@@ -197,6 +197,8 @@ fxp_videoclipper sampler -i path/to/video.mp4 -o path/to/sampled_frames -a path/
 - Uses an MP3 file for audio synchronization.
 - Saves the sampled frames to the specified output directory.
 * Merger Command Guide
+[[./assets/merger.gif]]
+
 This section explains how to use the merger command to blend two directories of images.
 
 ** Overview
