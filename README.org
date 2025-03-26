@@ -88,6 +88,7 @@ For detailed help on each subcommand, append `-h` to the command name. For examp
 
 * Exporter Command
 [[./assets/exporter.gif]]
+
 The exporter mode extracts frames from a video based on duration and resolution. It supports the following options:
 
 -  *-i, --input* : Input video file.
