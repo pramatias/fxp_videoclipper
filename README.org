@@ -9,9 +9,7 @@ fxp_videoclipper is an open source tool for easy videoclip creation with optiona
 To install the tool, clone the repository and compile the project:
 
   #+BEGIN_SRC bash
-  git clone https://github.com/yourusername/fxp_videoclipper.git
-  cd fxp_videoclipper
-  cargo build --release
+  cargo install fxp_videoclipper
   #+END_SRC
 
 Make sure you have Rust and Cargo installed.
@@ -89,6 +87,7 @@ For detailed help on each subcommand, append `-h` to the command name. For examp
   #+END_SRC
 
 * Exporter Command
+[[./assets/exporter.gif]]
 The exporter mode extracts frames from a video based on duration and resolution. It supports the following options:
 
 -  *-i, --input* : Input video file.
