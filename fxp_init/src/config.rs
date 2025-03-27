@@ -16,12 +16,6 @@ pub struct Config {
     pub sampling_number: usize,
     /// Overall opacity value for merging images (0.0 - 1.0)
     pub opacity: f32,
-    /// Additional opacity value 1 (0.0 - 1.0)
-    pub multiple_opacities_1: f32,
-    /// Additional opacity value 2 (0.0 - 1.0)
-    pub multiple_opacities_2: f32,
-    /// Additional opacity value 3 (0.0 - 1.0)
-    pub multiple_opacities_3: f32,
 }
 
 // Manually implement Default to set custom default values
@@ -33,9 +27,6 @@ impl Default for Config {
             pixel_upper_limit: 480,     // Adjust default pixel limit if needed
             sampling_number: 10,        // Adjust default sample count if needed
             opacity: 0.5,               // Default overall opacity
-            multiple_opacities_1: 0.25, // Default additional opacity 1
-            multiple_opacities_2: 0.5,  // Default additional opacity 2
-            multiple_opacities_3: 0.75, // Default additional opacity 3
         }
     }
 }
@@ -119,36 +110,6 @@ pub fn initialize_configuration() -> Result<()> {
         .default(config.opacity)
         .interact()
         .unwrap_or(config.opacity);
-
-    // Prompt the user to update multiple_opacities_1
-    config.multiple_opacities_1 = Input::new()
-        .with_prompt(format!(
-            "Enter multiple_opacities_1 value (0.0 - 1.0, current: {})",
-            config.multiple_opacities_1
-        ))
-        .default(config.multiple_opacities_1)
-        .interact()
-        .unwrap_or(config.multiple_opacities_1);
-
-    // Prompt the user to update multiple_opacities_2
-    config.multiple_opacities_2 = Input::new()
-        .with_prompt(format!(
-            "Enter multiple_opacities_2 value (0.0 - 1.0, current: {})",
-            config.multiple_opacities_2
-        ))
-        .default(config.multiple_opacities_2)
-        .interact()
-        .unwrap_or(config.multiple_opacities_2);
-
-    // Prompt the user to update multiple_opacities_3
-    config.multiple_opacities_3 = Input::new()
-        .with_prompt(format!(
-            "Enter multiple_opacities_3 value (0.0 - 1.0, current: {})",
-            config.multiple_opacities_3
-        ))
-        .default(config.multiple_opacities_3)
-        .interact()
-        .unwrap_or(config.multiple_opacities_3);
 
     debug!("User input received for configuration.");
 

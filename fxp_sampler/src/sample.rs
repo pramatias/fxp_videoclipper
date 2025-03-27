@@ -80,14 +80,14 @@ pub fn extract_single_frame<P: AsRef<Path>>(
         let formatted_filename = if filename_str.to_lowercase().ends_with(".png") {
             // Remove the ".png" (4 characters) and insert %01d before it.
             let base = &filename_str[..filename_str.len() - 4];
-            format!("{}%01d.png", base)
+            format!("{}%04d.png", base)
         } else {
             // Otherwise, just append %01d.png
-            format!("{}%01d.png", filename_str)
+            format!("{}%04d.png", filename_str)
         };
         parent.join(formatted_filename)
     } else {
-        output_path.join("sample_frame%01d.png")
+        output_path.join("sample_frame%04d.png")
     };
 
     let video_str = video
@@ -117,7 +117,7 @@ pub fn extract_single_frame<P: AsRef<Path>>(
 
     if output_is_file {
         let extracted_file = temp_output_path.with_file_name(format!(
-            "{}1.png",
+            "{}0001.png",
             output_path.file_stem().unwrap().to_string_lossy()
         ));
         std::fs::rename(&extracted_file, &output_path).with_context(|| {

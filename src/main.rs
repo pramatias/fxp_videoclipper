@@ -103,12 +103,6 @@ pub struct ClutterOptions {
         help = "Path to the source image used for CLUT"
     )]
     pub clut_image: String,
-    /// Opacity level for merging in clutter mode (0.0 - 1.0)
-    #[arg(long = "clut-opacity", help = "Opacity level for merging in clutter mode ", value_parser = clap::value_parser!(f32))]
-    pub clut_opacity: Option<f32>,
-    /// Merge clutted images with original with multiple opacities
-    #[arg(long = "clut-multiple", help = "Merge clutted images with original ", action = ArgAction::SetTrue)]
-    pub clut_multiple: bool,
 }
 
 #[derive(Args, Debug)]
@@ -457,9 +451,6 @@ fn run_clipper(options: &ClipperOptions, config: &Config) -> Result<()> {
 ///
 /// # Returns
 /// - `Result<()>`: Indicates success or failure of the CLUT operation.
-///
-/// # Notes
-/// - Merging of CLUT images is performed only if the corresponding flags are enabled.
 fn run_clutter(options: &ClutterOptions, _config: &Config) -> Result<()> {
     // Access input and output from the flattened InputOutput field
     let input_dir = &options.io.input;
@@ -486,43 +477,6 @@ fn run_clutter(options: &ClutterOptions, _config: &Config) -> Result<()> {
         "CLUT images created successfully in directory: {:?}",
         clut_dir
     );
-
-    // // Determine if merging is enabled via the clutter-specific flags.
-    // let merger_enabled =
-    //     options.clut_merge || options.clut_multiple || options.clut_opacity.is_some();
-    // debug!("Clutter merger mode enabled: {}", merger_enabled);
-
-    // if merger_enabled {
-    //     debug!("Clutter merger mode activated.");
-
-    //     if options.clut_opacity.is_some() && options.clut_multiple {
-    //         warn!("Both --clut-opacity and --clut-multiple are selected. The single opacity value will take priority.");
-    //     }
-
-    //     let opacities = if options.clut_opacity.is_some() {
-    //         debug!("Single opacity mode selected, ignoring --clut-multiple.");
-    //         vec![get_opacity(options.clut_opacity, config)
-    //             .context("Failed to retrieve opacity from configuration")?]
-    //     } else if options.clut_multiple {
-    //         debug!("Retrieving multiple opacities from configuration");
-    //         get_multiple_opacities(None, config)
-    //             .context("Failed to retrieve multiple opacities from configuration")?
-    //             .to_vec()
-    //     } else {
-    //         debug!("No opacity options selected, skipping merging.");
-    //         return Ok(());
-    //     };
-
-    //     // Call the merging function.
-    //     merging(
-    //         clut_dir.clone(),  // Represents the CLUT images directory.
-    //         input_dir.clone(), // Represents the original images directory.
-    //         Some(clut_dir.clone()),
-    //         opacities,
-    //     )?;
-    // } else {
-    //     debug!("Clutter merger mode not activated. Skipping image merging.");
-    // }
 
     debug!("Clutter run completed successfully");
     Ok(())

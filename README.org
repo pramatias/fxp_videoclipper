@@ -1,9 +1,10 @@
-#+TITLE: fxp_videoclipper README
+#+TITLE: fxp videoclipper
 #+AUTHOR: emporas
 #+DATE: 2025-03-24
 
 * Overview
 [[./assets/fxp_logo.jpeg]]
+
 fxp_videoclipper is an open source tool for easy videoclip creation with optional GMIC mode. It supports several subcommands including exporter, sampler, merger, gmicer, clutter, and clipper. This tool allows you to extract frames from a video, sample frames evenly, merge images, apply GMIC commands, transfer colors via CLUT, and create complete video clips.
 
 To install the tool, clone the repository and compile the project:
@@ -149,6 +150,8 @@ fxp_videoclipper exporter -i sample_video.mp4 -o frames_output -d 20000 -f 15
 - Uses shorthand flags for input (-i) and output (-o).
 - Extracts frames from the first 20 seconds at 15 FPS.
 * Sampler Command
+[[./assets/sampler.gif]]
+
 The sampler mode extracts frames evenly across a video. It supports several options for flexible sampling:
 
 - *-i, --input*: Input video file.
@@ -239,6 +242,8 @@ fxp_videoclipper merger \
 
 With these instructions, users should be able to effectively utilize the merger functionality in fxp_videoclipper.
 * Gmicer Command Guide
+[[./assets/gmicer.gif]]
+
 This section explains how to use the GMIC command to apply a GMIC operation to all images within an input directory.
 
 ** Overview
@@ -275,6 +280,8 @@ fxp_videoclipper gmicer \
 This guide helps users understand how to leverage the GMIC functionality within `fxp_videoclipper` for batch image processing.
 
 * Clutter Command
+[[./assets/clutter.gif]]
+
 The clutter mode transfers colors using a CLUT (Color Look-Up Table) file. This mode applies a color transfer effect to images from a given input directory. The available options are:
 
 Usage: fxp_videoclipper clutter [OPTIONS] --input <INPUT> --clut <CLUT_IMAGE>
@@ -284,9 +291,6 @@ Options:
   -o, --output <OUTPUT>              Output directory
 
   -l, --clut <CLUT_IMAGE>            Path to the source image used for CLUT
-      --clut-opacity <CLUT_OPACITY>  Opacity level for merging in clutter mode
-      --clut-multiple                Merge clutted images with original
-      --clut-merge                   Run the merging process after applying CLUT
 
   -h, --help                         Print help
 
@@ -305,29 +309,9 @@ fxp_videoclipper clutter \
 - Applies the color transfer using the CLUT image provided.
 - Processes all images from *input_images* and outputs them to *output_images*.
 
-** Example 2: CLUT Transfer with Opacity and Merging
-
-Apply a CLUT file with a specific opacity and merge the processed images with the original ones.
-
-#+BEGIN_SRC bash
-fxp_videoclipper clutter \
-  --input path/to/input_images \
-  --output path/to/output_images \
-  --clut path/to/clut_image.png \
-  --clut-opacity 0.75 \
-  --clut-multiple \
-  --clut-merge
-#+END_SRC
-
-*Explanation:*
-- Uses a 75% opacity level for the CLUT effect.
-- Merges the clutted images with the original images after applying the CLUT.
-
-
-
-
-
 * Clipper Command
+[[./assets/clipper.gif]]
+
 The clipper mode creates a complete videoclip by assembling processed frames. It supports the following options:
 
 Usage: fxp_videoclipper clipper [OPTIONS] --input <INPUT>
