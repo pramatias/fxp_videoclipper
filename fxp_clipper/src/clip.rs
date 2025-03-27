@@ -14,6 +14,88 @@ use std::sync::{
 };
 use std::{fs, thread, time::Duration};
 
+/// Creates a video clip from images, optionally merges audio, and trims the result.
+///
+/// This function handles the entire process of generating a video from a directory of images,
+/// merging it with an optional audio file, and trimming the final video to a specified duration.
+///
+/// # Parameters
+/// - `input_dir`: Directory containing image files to process.
+/// - `output_path`: Path where the final video file will be saved.
+/// - `mp3_path`: Optional path to an MP3 audio file for merging.
+/// - `fps`: Frames per second for the generated video.
+/// - `duration`: Optional duration to trim the final video (required if MP3 is provided).
+/// - `running`: A handle to check if the process should continue running.
+/// - `tmp_dir_path`: Temporary directory for intermediate files.
+///
+/// # Returns
+/// - `Result<PathBuf>`: Path to the created video file, or an error if something fails.
+///
+/// # Notes
+/// - If an MP3 path is provided, the function will:
+///   1. Create a video without audio.
+///   2. Merge the video with the audio.
+///   3. Trim the merged video to the specified duration.
+/// - If no MP3 is provided, the function will only create and copy the video without audio.
+/// - The progress bar tracks the three main processing steps.
+pub fn make_clip(
+    input_dir: &Path,
+    output_path: &Path,
+    mp3_path: Option<&Path>,
+    fps: u32,
+    duration: Option<u64>,
+    running: Arc<AtomicBool>,
+    tmp_dir_path: &Path,
+) -> Result<PathBuf> {
+    // Create one progress bar with 3 steps.
+    let pb = ProgressBar::new(3);
+    let style = ProgressStyle::default_bar()
+        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}")
+        .context("Failed to set progress bar template")?;
+    pb.set_style(style);
+
+    // Step 1: Create video without audio.
+    pb.set_message("Creating video without audio...");
+    let video_path_no_audio =
+        create_video_without_audio(input_dir, fps, tmp_dir_path, output_path, running.clone());
+    debug!("Video without audio created at: {:?}", video_path_no_audio);
+    pb.inc(1);
+    pb.set_message("Video without audio created.");
+
+    // Check if we have an MP3 file for audio merging.
+    if let Some(mp3) = mp3_path {
+        // Step 2: Merge video and audio.
+        pb.set_message("Merging video and audio...");
+        let merged_video_path = merge_video_audio(&video_path_no_audio, mp3, running.clone());
+        debug!("Video and audio merged at: {:?}", merged_video_path);
+        pb.inc(1);
+        pb.set_message("Audio merged with video.");
+
+        // Step 3: Trim the merged video.
+        let duration = duration.expect("duration must be provided");
+        let trimmed_video_path = trim_merged_video(
+            merged_video_path,
+            duration,
+            output_path.to_path_buf(),
+            running.clone(),
+        )?;
+        debug!("Trimmed video saved at: {:?}", trimmed_video_path);
+        pb.inc(1);
+        pb.finish();
+        Ok(output_path.to_path_buf())
+    } else {
+        // When no MP3 is provided, we simulate the remaining two steps.
+        pb.set_message("No MP3 provided. Copying video without audio to output...");
+        fs::copy(&video_path_no_audio, output_path)
+            .context("Failed to copy video without audio to output directory")?;
+        debug!("Video without audio copied to output path: {:?}", output_path);
+        // We still want to complete the progress bar (steps 2 and 3).
+        pb.inc(2);
+        pb.finish();
+        Ok(output_path.to_path_buf())
+    }
+}
+
 /// Creates a video from image frames without audio using ffmpeg.
 ///
 /// This function takes a directory of image frames, processes them into a video
@@ -64,15 +146,6 @@ pub fn create_video_without_audio(
     let output_filename = output_file.to_string_lossy().to_string();
     debug!("Output video file: {}", output_filename);
 
-    // Set up a spinner-style progress bar.
-    let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(Duration::from_millis(100));
-    let style = ProgressStyle::default_spinner()
-        .template("{spinner:.green} [{elapsed_precise}] {msg}")
-        .expect("Failed to set progress bar template");
-    pb.set_style(style);
-    pb.set_message("Creating video...");
-
     // Spawn the ffmpeg process.
     debug!("Spawning ffmpeg process to create video...");
     let mut child = Command::new("ffmpeg")
@@ -97,7 +170,6 @@ pub fn create_video_without_audio(
     // Poll the process periodically, checking for interruption.
     loop {
         if running.load(Ordering::Relaxed) {
-            pb.finish_with_message("Running by user!");
             // Attempt to kill the ffmpeg process.
             if let Err(e) = child.kill() {
                 debug!("Failed to kill ffmpeg process: {}", e);
@@ -107,7 +179,6 @@ pub fn create_video_without_audio(
         }
         match child.try_wait() {
             Ok(Some(status)) => {
-                pb.finish_with_message("Video creation completed!");
                 debug!("ffmpeg command finished with status: {}", status);
                 if !status.success() {
                     eprintln!("ffmpeg command failed");
@@ -120,7 +191,6 @@ pub fn create_video_without_audio(
                 std::thread::sleep(Duration::from_millis(100));
             }
             Err(e) => {
-                pb.finish_with_message("Error checking process status");
                 eprintln!("Error while checking ffmpeg process: {}", e);
                 exit(1);
             }
@@ -151,7 +221,7 @@ pub fn create_video_without_audio(
 /// - The process can be interrupted by setting the `running` flag.
 pub fn merge_video_audio(
     video_path: &PathBuf,
-    mp3_path: &PathBuf,
+    mp3_path: &Path,
     running: Arc<AtomicBool>,
 ) -> PathBuf {
     log::debug!(

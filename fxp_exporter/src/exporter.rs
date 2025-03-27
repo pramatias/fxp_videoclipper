@@ -26,26 +26,26 @@ pub struct Exporter {
 
 impl Exporter {
     /// Initializes and configures an `Exporter` instance for video processing.
-///
-/// Creates a new exporter by setting up the video path, output directory,
-/// and validating the input parameters for duration, frames per second,
-/// and pixel limits.
-///
-/// # Parameters
-/// - `video_path`: The file path to the input video.
-/// - `output`: An optional path for the output directory.
-/// - `duration`: The duration of the video in seconds.
-/// - `fps`: The frames per second for processing.
-/// - `pixel_upper_limit`: The maximum allowed number of pixels.
-///
-/// # Returns
-/// - `Result<Self>`: Returns the configured `Exporter` instance or an error.
-///
-/// # Notes
-/// - The output directory will be created if it doesn't exist.
-/// - Default output directory is the same as the video file's directory.
-/// - Validates that duration and fps are greater than zero.
-/// - Ensures pixel upper limit is a reasonable value.
+    ///
+    /// Creates a new exporter by setting up the video path, output directory,
+    /// and validating the input parameters for duration, frames per second,
+    /// and pixel limits.
+    ///
+    /// # Parameters
+    /// - `video_path`: The file path to the input video.
+    /// - `output`: An optional path for the output directory.
+    /// - `duration`: The duration of the video in seconds.
+    /// - `fps`: The frames per second for processing.
+    /// - `pixel_upper_limit`: The maximum allowed number of pixels.
+    ///
+    /// # Returns
+    /// - `Result<Self>`: Returns the configured `Exporter` instance or an error.
+    ///
+    /// # Notes
+    /// - The output directory will be created if it doesn't exist.
+    /// - Default output directory is the same as the video file's directory.
+    /// - Validates that duration and fps are greater than zero.
+    /// - Ensures pixel upper limit is a reasonable value.
     pub fn new(
         video_path: String,
         output: Option<String>,
@@ -79,22 +79,22 @@ impl Exporter {
 
 impl Exporter {
     /// Processes video export by cutting and extracting frames with error handling.
-///
-/// This method handles the video export process, including cutting a specific section
-/// of the video and extracting frames from it. It includes error handling and cleanup
-/// operations.
-///
-/// # Parameters
-/// - `running`: An `Arc<AtomicBool>` used to track the running state of the operation.
-///
-/// # Returns
-/// - `Result<()>`: Returns `Ok(())` on success and an error on failure.
-///
-/// # Notes
-/// - Handles Ctrl+C interruptions gracefully.
-/// - Creates and manages a temporary directory for processing.
-/// - Provides progress tracking during frame extraction.
-/// - Retains temporary files in debug mode for inspection.
+    ///
+    /// This method handles the video export process, including cutting a specific section
+    /// of the video and extracting frames from it. It includes error handling and cleanup
+    /// operations.
+    ///
+    /// # Parameters
+    /// - `running`: An `Arc<AtomicBool>` used to track the running state of the operation.
+    ///
+    /// # Returns
+    /// - `Result<()>`: Returns `Ok(())` on success and an error on failure.
+    ///
+    /// # Notes
+    /// - Handles Ctrl+C interruptions gracefully.
+    /// - Creates and manages a temporary directory for processing.
+    /// - Provides progress tracking during frame extraction.
+    /// - Retains temporary files in debug mode for inspection.
     pub fn export_images(&self) -> Result<()> {
         debug!("Starting export processing with arguments: {:?}", self);
 

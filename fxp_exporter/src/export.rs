@@ -78,7 +78,7 @@ pub fn extract_all_frames_with_progress(
         pb.inc(1);
     }
 
-    pb.finish_with_message(" -> Frame extraction complete!");
+    pb.finish();
     debug!("Frame extraction completed!");
     Ok(())
 }

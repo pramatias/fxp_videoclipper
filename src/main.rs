@@ -2,11 +2,11 @@ use anyhow::{Context, Result};
 use clap::{ArgAction, Args, Parser, Subcommand};
 use clap_verbosity_flag::log::LevelFilter;
 use console::style;
-use log::{debug, warn};
+use log::debug;
 use std::path::Path;
 
 use fxp_init::get_audio_file;
-use fxp_init::{get_audio_dir, get_audio_duration, get_multiple_opacities};
+use fxp_init::{get_audio_dir, get_audio_duration};
 use fxp_init::{get_duration, get_fps, get_opacity, get_pixel_upper_limit, get_sampling_number};
 use fxp_init::{initialize_configuration, initialize_logger, load_default_configuration, Config};
 
@@ -109,8 +109,6 @@ pub struct ClutterOptions {
     /// Merge clutted images with original with multiple opacities
     #[arg(long = "clut-multiple", help = "Merge clutted images with original ", action = ArgAction::SetTrue)]
     pub clut_multiple: bool,
-    /// Run the merging process after applying CLUT
-    pub clut_merge: bool,
 }
 
 #[derive(Args, Debug)]
@@ -462,7 +460,7 @@ fn run_clipper(options: &ClipperOptions, config: &Config) -> Result<()> {
 ///
 /// # Notes
 /// - Merging of CLUT images is performed only if the corresponding flags are enabled.
-fn run_clutter(options: &ClutterOptions, config: &Config) -> Result<()> {
+fn run_clutter(options: &ClutterOptions, _config: &Config) -> Result<()> {
     // Access input and output from the flattened InputOutput field
     let input_dir = &options.io.input;
     let output = options.io.output.clone();
@@ -489,42 +487,42 @@ fn run_clutter(options: &ClutterOptions, config: &Config) -> Result<()> {
         clut_dir
     );
 
-    // Determine if merging is enabled via the clutter-specific flags.
-    let merger_enabled =
-        options.clut_merge || options.clut_multiple || options.clut_opacity.is_some();
-    debug!("Clutter merger mode enabled: {}", merger_enabled);
+    // // Determine if merging is enabled via the clutter-specific flags.
+    // let merger_enabled =
+    //     options.clut_merge || options.clut_multiple || options.clut_opacity.is_some();
+    // debug!("Clutter merger mode enabled: {}", merger_enabled);
 
-    if merger_enabled {
-        debug!("Clutter merger mode activated.");
+    // if merger_enabled {
+    //     debug!("Clutter merger mode activated.");
 
-        if options.clut_opacity.is_some() && options.clut_multiple {
-            warn!("Both --clut-opacity and --clut-multiple are selected. The single opacity value will take priority.");
-        }
+    //     if options.clut_opacity.is_some() && options.clut_multiple {
+    //         warn!("Both --clut-opacity and --clut-multiple are selected. The single opacity value will take priority.");
+    //     }
 
-        let opacities = if options.clut_opacity.is_some() {
-            debug!("Single opacity mode selected, ignoring --clut-multiple.");
-            vec![get_opacity(options.clut_opacity, config)
-                .context("Failed to retrieve opacity from configuration")?]
-        } else if options.clut_multiple {
-            debug!("Retrieving multiple opacities from configuration");
-            get_multiple_opacities(None, config)
-                .context("Failed to retrieve multiple opacities from configuration")?
-                .to_vec()
-        } else {
-            debug!("No opacity options selected, skipping merging.");
-            return Ok(());
-        };
+    //     let opacities = if options.clut_opacity.is_some() {
+    //         debug!("Single opacity mode selected, ignoring --clut-multiple.");
+    //         vec![get_opacity(options.clut_opacity, config)
+    //             .context("Failed to retrieve opacity from configuration")?]
+    //     } else if options.clut_multiple {
+    //         debug!("Retrieving multiple opacities from configuration");
+    //         get_multiple_opacities(None, config)
+    //             .context("Failed to retrieve multiple opacities from configuration")?
+    //             .to_vec()
+    //     } else {
+    //         debug!("No opacity options selected, skipping merging.");
+    //         return Ok(());
+    //     };
 
-        // Call the merging function.
-        merging(
-            clut_dir.clone(),  // Represents the CLUT images directory.
-            input_dir.clone(), // Represents the original images directory.
-            Some(clut_dir.clone()),
-            opacities,
-        )?;
-    } else {
-        debug!("Clutter merger mode not activated. Skipping image merging.");
-    }
+    //     // Call the merging function.
+    //     merging(
+    //         clut_dir.clone(),  // Represents the CLUT images directory.
+    //         input_dir.clone(), // Represents the original images directory.
+    //         Some(clut_dir.clone()),
+    //         opacities,
+    //     )?;
+    // } else {
+    //     debug!("Clutter merger mode not activated. Skipping image merging.");
+    // }
 
     debug!("Clutter run completed successfully");
     Ok(())
@@ -571,7 +569,8 @@ fn run_sampler(options: &SamplerOptions, config: &Config) -> Result<()> {
     debug!("Using resolved sampling number: {}", sampling_number);
 
     // Create sampler arguments.
-    let sampler_args = fxp_sampler::Sampler::new(video_path, output_path, duration, sampling_number);
+    let sampler_args =
+        fxp_sampler::Sampler::new(video_path, output_path, duration, sampling_number);
     debug!("Sampler CLI Arguments: {:?}", sampler_args);
 
     // Set up a Ctrl+C handler.
@@ -650,46 +649,6 @@ fn run_exporter(options: &ExporterOptions, config: &Config) -> Result<()> {
     debug!("Finished running exporter: {:?}", exporter);
 
     Ok(())
-}
-
-// Updated run_clutter that accepts separate input/output and clutter options.
-/// Merges images with varying opacities from input directories.
-///
-/// This function handles the merging process for multiple opacity levels,
-/// creating composite images based on the specified input and CLUT directories.
-///
-/// # Parameters
-/// - `input_dir`: Path to the directory containing input images.
-/// - `clut_dir`: Path to the directory containing color lookup tables.
-/// - `output_dir`: Optional path for output images; defaults to input directory if not specified.
-/// - `opacities`: List of opacity values to apply during the merging process.
-///
-/// # Returns
-/// - `Result<()>`: Success if all images are merged without errors; `Err` otherwise.
-///
-/// # Notes
-/// - Each opacity value in `opacities` triggers a separate merging operation.
-/// - Output directory defaults to the input directory if not provided.
-fn merging(
-    input_dir: String,
-    clut_dir: String,
-    _output_dir: Option<String>,
-    opacities: Vec<f32>,
-) -> Result<Vec<String>> {
-    let mut output_directories = Vec::new();
-
-    for opacity in opacities {
-        debug!("Merging images with opacity: {}", opacity);
-        let merger = fxp_merger::Merger::new(input_dir.clone(), clut_dir.clone(), opacity, None)
-            .context("Failed to initialize image merger")?;
-
-        let output_directory = merger.merge_images()?; // Apply the `?` operator here
-        debug!("Images merged successfully with opacity: {}", opacity);
-
-        output_directories.push(output_directory.to_string_lossy().into_owned());
-    }
-
-    Ok(output_directories)
 }
 
 /// Helper function that filters out any occurrence of "-o" and its following argument,

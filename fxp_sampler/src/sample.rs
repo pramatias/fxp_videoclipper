@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
-use log::{debug, error, info};
+use log::{debug, error};
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -37,13 +37,24 @@ pub fn extract_single_frame<P: AsRef<Path>>(
     output_path: PathBuf,
     running: Arc<AtomicBool>,
 ) -> Result<()> {
+    // Initialize the progress bar with a total of 1 step (since only one frame is being extracted)
+    let pb = ProgressBar::new(1);
+    let style = ProgressStyle::default_bar()
+        .template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+        )
+        .context("Failed to set progress bar template")?;
+    pb.set_style(style);
+
     debug!("Starting to extract a single frame from the middle of the video...");
 
     if !running.load(Ordering::SeqCst) {
+        pb.finish_and_clear();
         return Err(anyhow!("Extraction interrupted before starting."));
     }
 
     if duration_ms == 0 {
+        pb.finish_and_clear();
         return Err(anyhow!("Failed to determine video length."));
     }
 
@@ -51,6 +62,7 @@ pub fn extract_single_frame<P: AsRef<Path>>(
     debug!("Calculated middle timestamp (ms): {}", middle_timestamp_ms);
 
     if !running.load(Ordering::SeqCst) {
+        pb.finish_and_clear();
         return Err(anyhow!(
             "Extraction interrupted before extracting the frame."
         ));
@@ -86,6 +98,7 @@ pub fn extract_single_frame<P: AsRef<Path>>(
         .to_str()
         .ok_or_else(|| anyhow!("Invalid output file path"))?;
 
+    // Set a progress message and perform the frame extraction
     extract_frame(
         video_str,
         middle_timestamp_seconds,
@@ -98,6 +111,9 @@ pub fn extract_single_frame<P: AsRef<Path>>(
             middle_timestamp_seconds
         )
     })?;
+
+    // Mark progress complete
+    pb.inc(1);
 
     if output_is_file {
         let extracted_file = temp_output_path.with_file_name(format!(
@@ -114,14 +130,16 @@ pub fn extract_single_frame<P: AsRef<Path>>(
     }
 
     if running.load(Ordering::SeqCst) {
-        info!(
+        debug!(
             "Successfully extracted frame at {:.3} seconds as {:?}",
             middle_timestamp_seconds, output_path
         );
     } else {
+        pb.finish_and_clear();
         return Err(anyhow!("Extraction was interrupted midway."));
     }
 
+    pb.finish();
     Ok(())
 }
 
@@ -177,14 +195,14 @@ pub fn extract_multiple_frames(
         .to_str()
         .ok_or_else(|| anyhow!("Invalid video path"))?;
 
-    // Set up a spinner-style progress bar.
-    let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(Duration::from_millis(100));
-    let style = ProgressStyle::default_spinner()
-        .template("{spinner:.green} [{elapsed_precise}] {msg}")
-        .expect("Failed to set progress bar template");
+    // Set up a progress bar for the total number of frames.
+    let pb = ProgressBar::new(num_frames as u64);
+    let style = ProgressStyle::default_bar()
+        .template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({eta}) {msg}",
+        )
+        .context("Failed to set progress bar template")?;
     pb.set_style(style);
-    pb.set_message("Extracting frames...");
 
     for i in 0..num_frames {
         if !running.load(Ordering::SeqCst) {
@@ -194,12 +212,12 @@ pub fn extract_multiple_frames(
 
         // Calculate timestamp for each frame.
         let timestamp_ms = frame_interval_ms * (i as u64 + 1);
-        log::debug!("Extracting frame {} at {} ms", i + 1, timestamp_ms);
-        pb.set_message(format!("Extracting frame {} at {} ms", i + 1, timestamp_ms));
+        debug!("Extracting frame {} at {} ms", i + 1, timestamp_ms);
+        // pb.set_message(format!("Extracting frame {} at {} ms", i + 1, timestamp_ms));
 
         // Build output file path by joining directory with a generated filename.
         let output_file_path = output_dir.join(format!("sample_frame_{}.png", i + 1));
-        log::debug!("Output file set to: {:?}", output_file_path);
+        debug!("Output file set to: {:?}", output_file_path);
 
         // Convert timestamp to seconds.
         let timestamp_seconds = timestamp_ms as f64 / 1000.0;
@@ -219,12 +237,15 @@ pub fn extract_multiple_frames(
                 timestamp_seconds
             )
         })?;
+
+        // Update the progress bar.
+        pb.inc(1);
     }
 
-    pb.finish_with_message("Successfully extracted frames");
+    pb.finish();
 
     if running.load(Ordering::SeqCst) {
-        log::info!("Successfully extracted {} frames.", num_frames);
+        debug!("Successfully extracted {} frames.", num_frames);
     } else {
         return Err(anyhow!("Extraction was interrupted midway."));
     }
@@ -295,7 +316,7 @@ fn extract_frame(
         if let Ok(Some(status)) = child.try_wait() {
             // Process finished, check its status.
             if status.success() {
-                info!("Frame extracted successfully to {}", output);
+                debug!("Frame extracted successfully to {}", output);
                 return Ok(());
             } else {
                 return Err(anyhow!("FFmpeg command failed with status: {}", status));

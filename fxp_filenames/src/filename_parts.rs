@@ -186,7 +186,7 @@ impl FilenameParts {
         debug!("Current suffix: {}", self.suffix);
         debug!("Current file extension: {}", self.file_extension);
 
-        let new_filename = format!("{}_{}.{}", new_prefix, self.suffix, self.file_extension);
+        let new_filename = format!("{}_{}.{}", "frame", self.suffix, self.file_extension);
         debug!("New filename constructed: {}", new_filename);
 
         new_filename

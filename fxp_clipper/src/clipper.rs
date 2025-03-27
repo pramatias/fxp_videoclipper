@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use ctrlc;
-use log::{debug, info};
+use log::debug;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
@@ -15,9 +15,7 @@ use fxp_modes::Modes;
 use fxp_output::ModeOutput;
 use fxp_output::Output;
 
-use crate::clip::create_video_without_audio;
-use crate::clip::merge_video_audio;
-use crate::clip::trim_merged_video;
+use crate::clip::make_clip;
 
 use fxp_filenames::FileOperations;
 use fxp_filenames::ImageMappingError;
@@ -39,6 +37,63 @@ pub struct Clipper {
 
     /// Duration in milliseconds to use for video processing.
     pub duration: Option<u64>,
+}
+
+impl Clipper {
+    /// Clips and processes a video file, handling interruptions gracefully.
+///
+/// This function manages the video clipping process, including temporary file handling
+/// and cleanup. It also supports Ctrl-C interruption and debug logging.
+///
+/// # Parameters
+/// - `images`: A slice of `PathBuf` objects representing the image files to process.
+///
+/// # Returns
+/// - `Result<PathBuf>`: The path to the final clipped video file on success.
+///
+/// # Notes
+/// - Creates a temporary directory for processing.
+/// - Handles Ctrl-C interruptions by setting a running flag.
+/// - Copies temporary directory contents to a debug directory in debug builds.
+    pub fn clip(&self) -> Result<PathBuf> {
+        debug!("Starting video clipping process...");
+
+        // Create a temporary directory using the tempfile crate.
+        let tmp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
+        let tmp_dir_path = tmp_dir.path().to_path_buf();
+
+        // Set up the running flag and register a Ctrl-C handler.
+        let running = Arc::new(AtomicBool::new(false));
+        let running_clone = running.clone();
+        ctrlc::set_handler(move || {
+            running_clone.store(true, Ordering::Relaxed);
+        })
+        .expect("Error setting Ctrl-C handler");
+
+        // Process video using the extracted function.
+        let final_video_path = make_clip(
+            &self.input_dir,
+            &self.output_path,
+            self.mp3_path.as_deref(), // converts Option<PathBuf> to Option<&Path>
+            self.fps,
+            self.duration,
+            running.clone(),
+            &tmp_dir_path,
+        )?;
+
+        #[cfg(debug_assertions)]
+        {
+            let debug_dir = PathBuf::from("/tmp/fxp_videoclipper");
+            copy_tmp_dir_contents(tmp_dir.path(), &debug_dir)?;
+        }
+
+        debug!(
+            "Video clipping process completed successfully. Final video saved at: {:?}",
+            final_video_path
+        );
+
+        Ok(final_video_path)
+    }
 }
 
 impl Clipper {
@@ -139,100 +194,6 @@ impl Clipper {
     }
 }
 
-impl Clipper {
-    /// Executes the video clipping process, handling both audio and video synchronization.
-    ///
-    /// This function manages the creation of temporary files, video/audio processing,
-    /// and handles interruptions gracefully.
-    ///
-    /// # Parameters
-    /// - `&self`: Implicit reference to the `Clipper` instance containing processing parameters.
-    ///
-    /// # Returns
-    /// - `Result<PathBuf>`: Path to the final clipped video file on success; `Err` on failure.
-    ///
-    /// # Notes
-    /// - Creates a temporary directory for intermediate processing.
-    /// - Handles video clipping with or without audio.
-    /// - Listens for Ctrl-C interruptions to allow user cancellation.
-    /// - In debug mode, copies temporary files to `/tmp/fxp_videoclipper` for inspection.
-    pub fn clip(&self) -> Result<PathBuf> {
-        debug!("Starting video clipping process...");
-
-        // Create a temporary directory using the tempfile crate.
-        let tmp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
-        let tmp_dir_path = tmp_dir.path().to_path_buf();
-
-        // Set up the running flag and register a Ctrl-C handler.
-        let running = Arc::new(AtomicBool::new(false));
-        let running_clone = running.clone();
-        ctrlc::set_handler(move || {
-            running_clone.store(true, Ordering::Relaxed);
-        })
-        .expect("Error setting Ctrl-C handler");
-
-        // Create the video without audio, passing the running flag.
-        debug!("Creating video without audio...");
-        let video_path_no_audio = create_video_without_audio(
-            &self.input_dir,
-            self.fps,
-            &tmp_dir_path,
-            &self.output_path,
-            running.clone(),
-        );
-        debug!("Video without audio created at: {:?}", video_path_no_audio);
-
-        // Process the video based on whether an MP3 is provided.
-        let final_video_path = if let Some(mp3) = &self.mp3_path {
-            debug!("MP3 file provided: {:?}. Merging video and audio...", mp3);
-
-            // Merge the video with the audio, passing the interruption flag.
-            let merged_video_path = merge_video_audio(&video_path_no_audio, mp3, running.clone());
-            debug!("Video and audio merged at: {:?}", merged_video_path);
-
-            // Unwrap duration (handle None case as needed)
-            let duration = self.duration.expect("duration must be provided");
-            debug!("Trimming merged video to duration: {} ms", duration);
-
-            let trimmed_video_path = trim_merged_video(
-                merged_video_path,
-                duration,
-                self.output_path.clone(),
-                running.clone(),
-            )?;
-            debug!("Trimmed video saved at: {:?}", trimmed_video_path);
-
-            self.output_path.clone()
-        } else {
-            debug!("No MP3 file provided. Copying video without audio to output path...");
-
-            // If no MP3 is provided, simply copy the video without audio.
-            fs::copy(&video_path_no_audio, &self.output_path)
-                .context("Failed to copy video without audio to output directory")?;
-            debug!(
-                "Video without audio copied to output path: {:?}",
-                self.output_path
-            );
-
-            self.output_path.clone()
-        };
-
-        debug!(
-            "Video clipping process completed successfully. Final video saved at: {:?}",
-            final_video_path
-        );
-
-        // In debug mode, copy the temporary directory contents to /tmp/fxp_videoclipper.
-        #[cfg(debug_assertions)]
-        {
-            let debug_dir = PathBuf::from("/tmp/fxp_videoclipper");
-            copy_tmp_dir_contents(tmp_dir.path(), &debug_dir)?;
-        }
-
-        Ok(final_video_path)
-    }
-}
-
 /// Sets up and prepares image files for Clipper processing.
 ///
 /// This function reads an input directory, validates the image files, and prepares them for processing.
@@ -276,7 +237,7 @@ fn setup_clipper_processing(
             input_directory.display()
         ));
     }
-    info!("Found {} image frames for processing", total_frames);
+    debug!("Found {} image frames for processing", total_frames);
 
     Ok((output_directory.to_path_buf(), frames, total_frames))
 }
