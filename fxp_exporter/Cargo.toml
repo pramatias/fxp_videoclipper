@@ -1,6 +1,6 @@
 [package]
 name = "fxp_exporter"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "Exporter mode for fxp_videoclipper"
 license = "MIT OR Apache-2.0"
@@ -12,8 +12,8 @@ ctrlc = "3.4.5"
 anyhow = "1.0.95"
 rand = "0.8.0"
 
-fxp_modes = { version = "0.4.0", path = "../fxp_modes"}
-fxp_output = { version = "0.4.0", path = "../fxp_output"}
+fxp_modes = { version = "0.4.1", path = "../fxp_modes"}
+fxp_output = { version = "0.4.1", path = "../fxp_output"}
 tempfile = "3.19.1"
 
 [lib]

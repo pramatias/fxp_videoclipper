@@ -517,7 +517,7 @@ dependencies = [
 
 [[package]]
 name = "fxp_clipper"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "ctrlc",
@@ -534,7 +534,7 @@ dependencies = [
 
 [[package]]
 name = "fxp_clutter"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "ctrlc",
@@ -549,7 +549,7 @@ dependencies = [
 
 [[package]]
 name = "fxp_exporter"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "ctrlc",
@@ -563,7 +563,7 @@ dependencies = [
 
 [[package]]
 name = "fxp_filenames"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "fxp_modes",
@@ -574,7 +574,7 @@ dependencies = [
 
 [[package]]
 name = "fxp_gmicer"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "console",
@@ -591,7 +591,7 @@ dependencies = [
 
 [[package]]
 name = "fxp_init"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "confy",
@@ -607,7 +607,7 @@ dependencies = [
 
 [[package]]
 name = "fxp_merger"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "fxp_filenames",
@@ -621,11 +621,11 @@ dependencies = [
 
 [[package]]
 name = "fxp_modes"
-version = "0.4.0"
+version = "0.4.1"
 
 [[package]]
 name = "fxp_output"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "fxp_modes",
@@ -634,7 +634,7 @@ dependencies = [
 
 [[package]]
 name = "fxp_sampler"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "ctrlc",
@@ -647,7 +647,7 @@ dependencies = [
 
 [[package]]
 name = "fxp_videoclipper"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "clap",

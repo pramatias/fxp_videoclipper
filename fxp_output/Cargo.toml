@@ -1,6 +1,6 @@
 [package]
 name = "fxp_output"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "Output file and directory handling for fxp_videoclipper"
 license = "MIT OR Apache-2.0"
@@ -9,4 +9,4 @@ license = "MIT OR Apache-2.0"
 anyhow = "1.0.96"
 log = "0.4"
 
-fxp_modes = { version = "0.4.0", path = "../fxp_modes"}
+fxp_modes = { version = "0.4.1", path = "../fxp_modes"}

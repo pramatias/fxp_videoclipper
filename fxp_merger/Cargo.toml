@@ -1,6 +1,6 @@
 [package]
 name = "fxp_merger"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "Merger mode for fxp_videoclipper"
 license = "MIT OR Apache-2.0"
@@ -12,9 +12,9 @@ log = "0.4"
 anyhow = "1.0.95"
 rand = "0.8.0"
 
-fxp_filenames = {version = "0.4.0", path = "../fxp_filenames"}
-fxp_modes = { version = "0.4.0", path = "../fxp_modes"}
-fxp_output = { version = "0.4.0", path = "../fxp_output"}
+fxp_filenames = {version = "0.4.1", path = "../fxp_filenames"}
+fxp_modes = { version = "0.4.1", path = "../fxp_modes"}
+fxp_output = { version = "0.4.1", path = "../fxp_output"}
 
 [lib]
 name = "fxp_merger"

@@ -1,6 +1,6 @@
 [package]
 name = "fxp_clipper"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "Clipper mode for fxp_videoclipper"
 license = "MIT OR Apache-2.0"
@@ -15,9 +15,9 @@ rand = "0.8.0"
 regex = "1.11.1"
 thiserror = "2.0.11"
 
-fxp_filenames = { version = "0.4.0", path = "../fxp_filenames"}
-fxp_modes = { version = "0.4.0", path = "../fxp_modes"}
-fxp_output = { version = "0.4.0", path = "../fxp_output"}
+fxp_filenames = { version = "0.4.1", path = "../fxp_filenames"}
+fxp_modes = { version = "0.4.1", path = "../fxp_modes"}
+fxp_output = { version = "0.4.1", path = "../fxp_output"}
 tempfile = "3.19.1"
 
 [lib]

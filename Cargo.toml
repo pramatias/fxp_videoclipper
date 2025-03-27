@@ -1,6 +1,6 @@
 [package]
 name = "fxp_videoclipper"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "fxp_videoclipper a tool for making amateur videoclips"
 license = "MIT OR Apache-2.0"
@@ -13,18 +13,18 @@ anyhow = "1.0.95"
 clap-verbosity-flag = "3.0.2"
 console = "0.15.10"
 
-fxp_init = { version = "0.4.0", path = "fxp_init" }
-fxp_modes = { version = "0.4.0", path = "fxp_modes"}
+fxp_init = { version = "0.4.1", path = "fxp_init" }
+fxp_modes = { version = "0.4.1", path = "fxp_modes"}
 
-fxp_exporter = { version = "0.4.0", path = "fxp_exporter" }
-fxp_sampler = { version = "0.4.0", path = "fxp_sampler" }
-fxp_merger = { version = "0.4.0", path = "fxp_merger"}
-fxp_clutter = { version = "0.4.0", path = "fxp_clutter" }
-fxp_gmicer = { version = "0.4.0", path = "fxp_gmicer" }
-fxp_clipper = { version = "0.4.0", path = "fxp_clipper" }
+fxp_exporter = { version = "0.4.1", path = "fxp_exporter" }
+fxp_sampler = { version = "0.4.1", path = "fxp_sampler" }
+fxp_merger = { version = "0.4.1", path = "fxp_merger"}
+fxp_clutter = { version = "0.4.1", path = "fxp_clutter" }
+fxp_gmicer = { version = "0.4.1", path = "fxp_gmicer" }
+fxp_clipper = { version = "0.4.1", path = "fxp_clipper" }
 
-fxp_filenames = { version = "0.4.0", path = "fxp_filenames"}
-fxp_output = { version = "0.4.0", path = "fxp_output"}
+fxp_filenames = { version = "0.4.1", path = "fxp_filenames"}
+fxp_output = { version = "0.4.1", path = "fxp_output"}
 
 [workspace]
 members = ["fxp_init", "fxp_exporter", "fxp_clutter", "fxp_filenames", "fxp_merger", "fxp_sampler", "fxp_gmicer", "fxp_clipper", "fxp_modes", "fxp_output",]
