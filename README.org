@@ -5,7 +5,7 @@
 * Overview
 [[./assets/fxp_logo.jpeg]]
 
-fxp_videoclipper is an open source tool for easy videoclip creation with optional GMIC mode. It supports several subcommands including exporter, sampler, merger, gmicer, clutter, and clipper. This tool allows you to extract frames from a video, sample frames evenly, merge images, apply GMIC commands, transfer colors via CLUT, and create complete video clips.
+fxp_videoclipper is an open source tool for easy videoclip creation. It supports several subcommands including exporter, sampler, merger, gmicer, clutter, and clipper. Videoclipper allows you to extract frames from a video, sample frames evenly, merge images, apply GMIC commands, transfer colors via CLUT, and create complete video clips.
 
 To install the tool:
 
@@ -27,6 +27,19 @@ For detailed help on each subcommand, append `-h` to the command name. For examp
   #+BEGIN_SRC bash
   fxp_videoclipper exporter -h
   #+END_SRC
+
+* Simple examples
+#+BEGIN_SRC bash
+fxp_videoclipper exporter -i Video.mp4 -o aaa
+fxp_videoclipper clipper -i aaa -o Video.mp4
+#the original video is reproduced, but rescaled and fps adjusted
+#+END_SRC
+
+#+BEGIN_SRC bash
+fxp_videoclipper exporter -i Video.mp4 -a audio.mp3 -o aaa
+fxp_videoclipper clipper -i aaa -a audio.mp3 -o Video.mp4
+#the original video is reproduced, but rescaled and fps adjusted
+#+END_SRC
 
 * Exporter Command
 [[./assets/exporter.gif]]
@@ -143,9 +156,6 @@ fxp_videoclipper sampler -i path/to/video.mp4 -o path/to/sampled_frames -a path/
 * Merger Command Guide
 [[./assets/merger.gif]]
 
-This section explains how to use the merger command to blend two directories of images.
-
-** Overview
 The merger command allows you to merge images from two different directories. The primary input directory is provided using the `--input` option, while the second directory is specified with `--second-directory`. You can also set an opacity level to control the blending effect.
 
 ** Command Usage
