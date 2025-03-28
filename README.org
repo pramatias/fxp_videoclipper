@@ -16,36 +16,102 @@ To install the tool:
 Make sure you have Rust and Cargo installed.
 
 * Simple examples
-** Simplest possible scenario
+* Most simple possible scenario
+#+BEGIN_SRC bash
+fxp_videoclipper exporter -i Video.mp4
+#Video_original_frames
+#+END_SRC
+#+BEGIN_SRC bash
+fxp_videoclipper clipper -i Video_original_frames
+#Video_original_frames.mp4 , the original video is reproduced, but rescaled and fps adjusted
+#+END_SRC
+
+* Simple scenario with specific output
 #+BEGIN_SRC bash
 fxp_videoclipper exporter -i Video.mp4 -o aaa
 #+END_SRC
 #+BEGIN_SRC bash
 fxp_videoclipper clipper -i aaa -o Video.mp4
-#the original video is reproduced, but rescaled and fps adjusted
 #+END_SRC
 
-** Simplest possible scenario with audio
+* Simple scenario with audio
 #+BEGIN_SRC bash
 fxp_videoclipper exporter -i Video.mp4 -a audio.mp3 -o aaa
 #+END_SRC
 #+BEGIN_SRC bash
-fxp_videoclipper clipper -i aaa -a audio.mp3 -o Video.mp4
+fxp_videoclipper clipper -i aaa -a audio.mp3 -o bbb.mp4
+#video now now cut to the duration of audio, and merged together
+#making a videoclip
+#+END_SRC
+
+* Gmic example
+#+BEGIN_SRC bash
+fxp_videoclipper exporter -i Video.mp4 -a audio.mp3
+#+END_SRC
+#+BEGIN_SRC bash
+fxp_videoclipper gmicer -i Video_original_frames
+#+END_SRC
+#+BEGIN_SRC bash
+fxp_videoclipper clipper -i aaa -a audio.mp3 -o bbb.mp4
 #the original video is reproduced, but rescaled and fps adjusted
 #+END_SRC
 
-* Help Options
-The main command is `fxp_videoclipper`, which accepts global options and subcommands. To view the general help message:
+* Installation
 
-  #+BEGIN_SRC bash
-  fxp_videoclipper -h
-  #+END_SRC
+Before building and using fxp_videoclipper, ensure that you have the following tools installed with the required minimum versions:
 
-For detailed help on each subcommand, append `-h` to the command name. For example, for the exporter:
+** Prerequisites
 
-  #+BEGIN_SRC bash
-  fxp_videoclipper exporter -h
-  #+END_SRC
+- *Rust and Cargo*
+  - Required for building the project.
+  - Installation instructions: [https://www.rust-lang.org/tools/install]
+
+- *ffmpeg (version 6.1.1 or later)*
+  - Required for the *exporter*, *sampler*, and *clipper* subcommands.
+  - Installation instructions:
+    - On Ubuntu/Debian:
+      #+BEGIN_SRC bash
+      sudo apt update && sudo apt install ffmpeg
+      #+END_SRC
+    - On macOS (using Homebrew):
+      #+BEGIN_SRC bash
+      brew install ffmpeg
+      #+END_SRC
+    - Alternatively, download from: [https://ffmpeg.org/download.html]
+
+- *gmic (version 3.5.0 or later)*
+  - Required for the *gmicer* subcommand.
+  - Installation instructions:
+    - On Ubuntu/Debian:
+      #+BEGIN_SRC bash
+      sudo apt update && sudo apt install gmic
+      #+END_SRC
+    - On macOS (using Homebrew):
+      #+BEGIN_SRC bash
+      brew install gmic
+      #+END_SRC
+    - Alternatively, download from: [https://gmic.eu/download.html]
+
+- *ImageMagick (convert, version 6.9.12-98 or later)*
+  - Required for the *clutter* subcommand.
+  - Installation instructions:
+    - On Ubuntu/Debian:
+      #+BEGIN_SRC bash
+      sudo apt update && sudo apt install imagemagick
+      #+END_SRC
+    - On macOS (using Homebrew):
+      #+BEGIN_SRC bash
+      brew install imagemagick
+      #+END_SRC
+    - Alternatively, download from: [https://imagemagick.org/script/download.php]
+
+** Building fxp_videoclipper
+
+Clone the repository and compile the project:
+
+#+BEGIN_SRC bash
+cargo install fxp_videoclipper
+#+END_SRC
 
 * Exporter Command
 [[./assets/exporter.gif]]
@@ -308,62 +374,18 @@ fxp_videoclipper clipper \
 - The final video is output as *final_video.mp4*.
 - An audio file (*audio.mp3*) is integrated.
 - The video is created at 30 frames per second.
-* Installation
+* Help Options
+The main command is `fxp_videoclipper`, which accepts global options and subcommands. To view the general help message:
 
-Before building and using fxp_videoclipper, ensure that you have the following tools installed with the required minimum versions:
+  #+BEGIN_SRC bash
+  fxp_videoclipper -h
+  #+END_SRC
 
-** Prerequisites
+For detailed help on each subcommand, append `-h` to the command name. For example, for the exporter:
 
-- *Rust and Cargo*
-  - Required for building the project.
-  - Installation instructions: [https://www.rust-lang.org/tools/install]
-
-- *ffmpeg (version 6.1.1 or later)*
-  - Required for the *exporter*, *sampler*, and *clipper* subcommands.
-  - Installation instructions:
-    - On Ubuntu/Debian:
-      #+BEGIN_SRC bash
-      sudo apt update && sudo apt install ffmpeg
-      #+END_SRC
-    - On macOS (using Homebrew):
-      #+BEGIN_SRC bash
-      brew install ffmpeg
-      #+END_SRC
-    - Alternatively, download from: [https://ffmpeg.org/download.html]
-
-- *gmic (version 3.5.0 or later)*
-  - Required for the *gmicer* subcommand.
-  - Installation instructions:
-    - On Ubuntu/Debian:
-      #+BEGIN_SRC bash
-      sudo apt update && sudo apt install gmic
-      #+END_SRC
-    - On macOS (using Homebrew):
-      #+BEGIN_SRC bash
-      brew install gmic
-      #+END_SRC
-    - Alternatively, download from: [https://gmic.eu/download.html]
-
-- *ImageMagick (convert, version 6.9.12-98 or later)*
-  - Required for the *clutter* subcommand.
-  - Installation instructions:
-    - On Ubuntu/Debian:
-      #+BEGIN_SRC bash
-      sudo apt update && sudo apt install imagemagick
-      #+END_SRC
-    - On macOS (using Homebrew):
-      #+BEGIN_SRC bash
-      brew install imagemagick
-      #+END_SRC
-    - Alternatively, download from: [https://imagemagick.org/script/download.php]
-
-** Building fxp_videoclipper
-
-Clone the repository and compile the project:
-
-#+BEGIN_SRC bash
-cargo install fxp_videoclipper
-#+END_SRC
+  #+BEGIN_SRC bash
+  fxp_videoclipper exporter -h
+  #+END_SRC
 
 * Contributing
 Contributions are welcome!
