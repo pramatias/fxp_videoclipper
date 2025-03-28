@@ -7,7 +7,7 @@
 
 fxp_videoclipper is an open source tool for easy videoclip creation with optional GMIC mode. It supports several subcommands including exporter, sampler, merger, gmicer, clutter, and clipper. This tool allows you to extract frames from a video, sample frames evenly, merge images, apply GMIC commands, transfer colors via CLUT, and create complete video clips.
 
-To install the tool, clone the repository and compile the project:
+To install the tool:
 
   #+BEGIN_SRC bash
   cargo install fxp_videoclipper
@@ -346,9 +346,7 @@ Before building and using fxp_videoclipper, ensure that you have the following t
 Clone the repository and compile the project:
 
 #+BEGIN_SRC bash
-git clone https://github.com/yourusername/fxp_videoclipper.git
-cd fxp_videoclipper
-cargo build --release
+cargo install fxp_videoclipper
 #+END_SRC
 
 * Contributing
