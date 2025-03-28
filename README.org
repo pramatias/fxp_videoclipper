@@ -15,7 +15,26 @@ To install the tool:
 
 Make sure you have Rust and Cargo installed.
 
-* Usage
+* Simple examples
+** Simplest possible scenario
+#+BEGIN_SRC bash
+fxp_videoclipper exporter -i Video.mp4 -o aaa
+#+END_SRC
+#+BEGIN_SRC bash
+fxp_videoclipper clipper -i aaa -o Video.mp4
+#the original video is reproduced, but rescaled and fps adjusted
+#+END_SRC
+
+** Simplest possible scenario with audio
+#+BEGIN_SRC bash
+fxp_videoclipper exporter -i Video.mp4 -a audio.mp3 -o aaa
+#+END_SRC
+#+BEGIN_SRC bash
+fxp_videoclipper clipper -i aaa -a audio.mp3 -o Video.mp4
+#the original video is reproduced, but rescaled and fps adjusted
+#+END_SRC
+
+* Help Options
 The main command is `fxp_videoclipper`, which accepts global options and subcommands. To view the general help message:
 
   #+BEGIN_SRC bash
@@ -27,19 +46,6 @@ For detailed help on each subcommand, append `-h` to the command name. For examp
   #+BEGIN_SRC bash
   fxp_videoclipper exporter -h
   #+END_SRC
-
-* Simple examples
-#+BEGIN_SRC bash
-fxp_videoclipper exporter -i Video.mp4 -o aaa
-fxp_videoclipper clipper -i aaa -o Video.mp4
-#the original video is reproduced, but rescaled and fps adjusted
-#+END_SRC
-
-#+BEGIN_SRC bash
-fxp_videoclipper exporter -i Video.mp4 -a audio.mp3 -o aaa
-fxp_videoclipper clipper -i aaa -a audio.mp3 -o Video.mp4
-#the original video is reproduced, but rescaled and fps adjusted
-#+END_SRC
 
 * Exporter Command
 [[./assets/exporter.gif]]
