@@ -152,7 +152,7 @@ fxp_videoclipper exporter -i sample_video.mp4 -o frames_output -d 20000 -f 15
 * Sampler Command
 [[./assets/sampler.gif]]
 
-The sampler mode extracts frames evenly across a video. It supports several options for flexible sampling:
+Sampler mode extracts frames evenly across a video. It supports several options for flexible sampling:
 
 - *-i, --input*: Input video file.
 - *-o, --output*: Output directory where the sampled frames will be saved.
@@ -244,9 +244,6 @@ With these instructions, users should be able to effectively utilize the merger 
 * Gmicer Command Guide
 [[./assets/gmicer.gif]]
 
-This section explains how to use the GMIC command to apply a GMIC operation to all images within an input directory.
-
-** Overview
 The `gmicer` command processes each image in the input directory by applying a GMIC command with specified arguments. Additional GMIC arguments can be provided to customize the image processing, and an output directory may be specified to store the processed images.
 
 ** Command Usage
@@ -255,12 +252,9 @@ fxp_videoclipper gmicer [OPTIONS] --input <INPUT> [GMIC_ARGS]...
 #+END_SRC
 
 ** Options and Arguments
-- *-i, --input <INPUT>*
-  Input directory containing the images to process.
-- *-o, --output <OUTPUT>*
-  (Optional) Output directory where the processed images will be saved.
-- *[GMIC_ARGS]...*
-  Arguments that are directly passed to the GMIC command.
+- *-i, --input*: Input directory containing the images to process.
+- *-o, --output*: Output directory where the processed images will be saved.
+- *[GMIC_ARGS]...*: Arguments that are directly passed to the GMIC command.
 
 ** Example Usage
 Below is an example that applies a GMIC command to all images in the input directory:
@@ -282,17 +276,16 @@ This guide helps users understand how to leverage the GMIC functionality within 
 * Clutter Command
 [[./assets/clutter.gif]]
 
-The clutter mode transfers colors using a CLUT (Color Look-Up Table) file. This mode applies a color transfer effect to images from a given input directory. The available options are:
+Clutter mode transfers colors using a CLUT (Color Look-Up Table) file. This mode applies a color transfer effect to images from a given input directory. The available options are:
 
 Usage: fxp_videoclipper clutter [OPTIONS] --input <INPUT> --clut <CLUT_IMAGE>
 
 Options:
-  -i, --input <INPUT>                Input directory
-  -o, --output <OUTPUT>              Output directory
+- *-i, --input*: Input directory
+- *-o, --output*: Output directory
+- *-l, --clut*: Path to the source image used for CLUT
 
-  -l, --clut <CLUT_IMAGE>            Path to the source image used for CLUT
-
-  -h, --help                         Print help
+ - *-h, --help*: Print help
 
 ** Example 1: Basic CLUT Transfer
 
@@ -317,13 +310,13 @@ The clipper mode creates a complete videoclip by assembling processed frames. It
 Usage: fxp_videoclipper clipper [OPTIONS] --input <INPUT>
 
 Options:
-  -i, --input <INPUT>    Input directory
-  -o, --output <OUTPUT>  Output video
+ - *-i, --input*    Input directory
+ - *-o, --output*  Output video
 
-  -a, --audio <MP3>      Optional path to the MP3 file
-  -f, --fps <FPS>        Frames per second to extract
+ - *-a, --audio*      Optional path to the MP3 file
+ - *-f, --fps*        Frames per second to extract
 
-  -h, --help             Print help
+ - *-h, --help*             Print help
 
 ** Example 1: Create Videoclip without Audio
 
@@ -359,7 +352,7 @@ fxp_videoclipper clipper \
 - An audio file (*audio.mp3*) is integrated.
 - The video is created at 30 frames per second.
 * Contributing
-Contributions are welcome! Please see CONTRIBUTING.org for guidelines on how to help improve fxp_videoclipper.
+Contributions are welcome!
 
 * License
 fxp_videoclipper is released under the MIT License. See LICENSE for details.
